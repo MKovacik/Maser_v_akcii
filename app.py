@@ -517,10 +517,12 @@ if "schedule" in st.session_state:
 
         skip_rows = set()
         for r_idx, slot in enumerate(slots):
-            if r_idx in skip_rows:
-                continue
             html += '<tr>'
             html += f'<td class="time-col">{min_to_time(slot)}</td>'
+
+            if r_idx in skip_rows:
+                html += '</tr>'
+                continue
 
             if r_idx in merge_spans:
                 span, full_name, cat_key = merge_spans[r_idx]
