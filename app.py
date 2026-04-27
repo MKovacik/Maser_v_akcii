@@ -85,11 +85,11 @@ st.markdown("""
         background: #1F4E79; color: white; padding: 6px 6px;
         text-align: center; font-weight: 600; font-size: 0.75rem;
         position: sticky; top: 0; z-index: 1;
-        min-width: 60px;
+        min-width: 70px;
     }
     .timeline-table tbody td {
         padding: 4px 4px; text-align: center; border: 1px solid #e0e0e0;
-        font-size: 0.7rem; white-space: nowrap; min-width: 60px;
+        font-size: 0.7rem; white-space: nowrap; min-width: 70px;
     }
     .timeline-table tbody td.time-col {
         font-weight: 600; background: #f0f4f8; padding: 4px 6px; color: #333;
@@ -453,9 +453,14 @@ if "schedule" in st.session_state:
             for name, s, e, cat in result[t_id]:
                 sm = int(s[:2]) * 60 + int(s[3:])
                 em = int(e[:2]) * 60 + int(e[3:])
-                short = {"Klasická masáž": "Klas.", "Freestyle masáž": "Free.",
-                         "Hod medicinbalom": "Hod", "Frisbee na cieľ": "Fris.",
-                         "Beh na 50m": "Beh", "Ľah-sed": "Ľah-s."}.get(name, name[:5])
+                abbrevs = {"Klasická masáž": "Klas.", "Freestyle masáž": "Free.",
+                           "Hod medicinbalom": "Hod", "Frisbee na cieľ": "Fris.",
+                           "Beh na 50m": "Beh", "Ľah-sed": "Ľah-s."}
+                if name in abbrevs:
+                    short = abbrevs[name]
+                else:
+                    word = name.split()[0]
+                    short = word if len(word) <= 6 else word[:5] + "."
                 for m in range(sm, em):
                     timeline[m] = (short, cat)
             tl_data[t_id] = timeline
