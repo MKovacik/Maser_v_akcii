@@ -3,6 +3,7 @@ import streamlit as st
 from datetime import time
 from solver import SolverConfig, SharedEvent, Activity, solve, min_to_time
 from export_excel import generate_excel
+from export_html import generate_html
 import os
 import base64
 
@@ -447,13 +448,35 @@ if "schedule" in st.session_state:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    dl_col, _, _ = st.columns([1, 1, 3])
-    with dl_col:
+    html_str = generate_html(result, config, logo_path=logo)
+
+    dl1, dl2, dl3, _ = st.columns([1, 1, 1, 2])
+    with dl1:
         st.download_button(
             label="Stiahnuť Excel", data=excel_bytes,
             file_name="Maser_v_akcii_harmonogram.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="primary", use_container_width=True)
+    with dl2:
+        st.download_button(
+            label="Stiahnuť HTML", data=html_str,
+            file_name="index.html",
+            mime="text/html",
+            use_container_width=True)
+    is_local = os.path.isdir(os.path.join(SCRIPT_DIR, ".git"))
+    if is_local:
+        with dl3:
+            if st.button("Publikovať na GitHub Pages", use_container_width=True):
+                import subprocess
+                docs_dir = os.path.join(SCRIPT_DIR, "docs")
+                os.makedirs(docs_dir, exist_ok=True)
+                with open(os.path.join(docs_dir, "index.html"), "w", encoding="utf-8") as f:
+                    f.write(html_str)
+                subprocess.run(["git", "add", "docs/index.html"], cwd=SCRIPT_DIR)
+                subprocess.run(["git", "commit", "-m", "Publish schedule to GitHub Pages"],
+                               cwd=SCRIPT_DIR)
+                subprocess.run(["git", "push"], cwd=SCRIPT_DIR)
+                st.success("Harmonogram publikovaný na GitHub Pages!")
 
     legend_html = '<div style="margin: 8px 0 20px 0;">'
     for a in config.masaze_activities:
