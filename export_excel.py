@@ -249,10 +249,6 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
 
     footer_rows = [(f"Ukončenie súťaže – {competition_end}",
                     PatternFill("solid", fgColor="D9D9D9"))]
-    for ev in post_events:
-        footer_rows.append((
-            f"{ev.name} – {min_to_time(ev.start_time)} – {min_to_time(ev.end_time)}",
-            category_fill[ev.category]))
     for label, fill in footer_rows:
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_sum_cols)
         cell = ws.cell(row=row, column=1, value=label)
@@ -328,10 +324,6 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
 
     tl_footer = [
         (competition_end, "Ukončenie súťaže", PatternFill("solid", fgColor="D9D9D9"))]
-    for ev in post_events:
-        tl_footer.append((
-            f"{min_to_time(ev.start_time)} – {min_to_time(ev.end_time)}",
-            ev.name, category_fill[ev.category]))
     for time_str, label, fill in tl_footer:
         cell = ws.cell(row=row, column=1, value=time_str)
         cell.font = FONT_NORMAL
@@ -443,11 +435,6 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
 
         sheet_footer = [("Ukončenie súťaže", competition_end,
                          PatternFill("solid", fgColor="D9D9D9"))]
-        for ev in post_events:
-            sheet_footer.append((
-                ev.name,
-                f"{min_to_time(ev.start_time)} – {min_to_time(ev.end_time)}",
-                category_fill[ev.category]))
         for label, time_val, fill in sheet_footer:
             for ci in range(1, 5):
                 ws_t.cell(row=r, column=ci).border = THIN_BORDER
