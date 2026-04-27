@@ -447,15 +447,18 @@ if "schedule" in st.session_state:
         tl_start = min(all_starts)
         tl_end = max(all_starts)
 
+        abbrevs = {"Klasická masáž": "Klas.", "Freestyle masáž": "Free.",
+                   "Hod medicinbalom": "Hod", "Frisbee na cieľ": "Fris.",
+                   "Beh na 50m": "Beh", "Ľah-sed": "Ľah-s."}
+
         tl_data = {}
+        tl_full = {}
         for t_id in sorted(result.keys()):
             timeline = {}
+            full_names = {}
             for name, s, e, cat in result[t_id]:
                 sm = int(s[:2]) * 60 + int(s[3:])
                 em = int(e[:2]) * 60 + int(e[3:])
-                abbrevs = {"Klasická masáž": "Klas.", "Freestyle masáž": "Free.",
-                           "Hod medicinbalom": "Hod", "Frisbee na cieľ": "Fris.",
-                           "Beh na 50m": "Beh", "Ľah-sed": "Ľah-s."}
                 if name in abbrevs:
                     short = abbrevs[name]
                 else:
@@ -463,31 +466,79 @@ if "schedule" in st.session_state:
                     short = word if len(word) <= 6 else word[:5] + "."
                 for m in range(sm, em):
                     timeline[m] = (short, cat)
+                    full_names[m] = (name, cat)
             tl_data[t_id] = timeline
+            tl_full[t_id] = full_names
 
         sorted_teams = sorted(result.keys())
+        slots = list(range(tl_start, tl_end, 5))
+
+        grid = []
+        for slot in slots:
+            row_data = []
+            for t_id in sorted_teams:
+                tl = tl_data[t_id]
+                fl = tl_full[t_id]
+                act, cat_key, full = "", None, ""
+                for m in range(slot, min(slot + 5, tl_end)):
+                    if m in tl:
+                        act, cat_key = tl[m]
+                        full, _ = fl[m]
+                        break
+                row_data.append((act, cat_key, full))
+            grid.append(row_data)
+
+        def is_uniform_row(row_data):
+            names = {full for _, _, full in row_data}
+            cats = {cat for _, cat, _ in row_data}
+            return len(names) == 1 and names != {""} and len(cats) == 1
+
+        merge_spans = {}
+        r = 0
+        while r < len(grid):
+            if is_uniform_row(grid[r]):
+                full_name = grid[r][0][2]
+                cat_key = grid[r][0][1]
+                span = 1
+                while (r + span < len(grid)
+                       and is_uniform_row(grid[r + span])
+                       and grid[r + span][0][2] == full_name):
+                    span += 1
+                merge_spans[r] = (span, full_name, cat_key)
+                r += span
+            else:
+                r += 1
+
         html = '<div class="timeline-wrap"><table class="timeline-table"><thead><tr>'
         html += '<th>Čas</th>'
         for t_id in sorted_teams:
             html += f'<th>T{t_id}</th>'
         html += '</tr></thead><tbody>'
 
-        for slot in range(tl_start, tl_end, 5):
+        skip_rows = set()
+        for r_idx, slot in enumerate(slots):
+            if r_idx in skip_rows:
+                continue
             html += '<tr>'
             html += f'<td class="time-col">{min_to_time(slot)}</td>'
-            for t_id in sorted_teams:
-                tl = tl_data[t_id]
-                act, cat_key = "", None
-                for m in range(slot, min(slot + 5, tl_end)):
-                    if m in tl:
-                        act, cat_key = tl[m]
-                        break
-                if act and cat_key:
-                    c = cat_colors.get(cat_key, {"bg": "#eee", "text": "#333"})
-                    html += (f'<td style="background:{c["bg"]};color:{c["text"]};'
-                             f'font-weight:500">{act}</td>')
-                else:
-                    html += '<td></td>'
+
+            if r_idx in merge_spans:
+                span, full_name, cat_key = merge_spans[r_idx]
+                c = cat_colors.get(cat_key, {"bg": "#eee", "text": "#333"})
+                html += (f'<td colspan="{len(sorted_teams)}" rowspan="{span}" '
+                         f'style="background:{c["bg"]};color:{c["text"]};'
+                         f'font-weight:600;font-size:0.85rem;text-align:center;'
+                         f'vertical-align:middle">{full_name}</td>')
+                for skip in range(r_idx + 1, r_idx + span):
+                    skip_rows.add(skip)
+            else:
+                for col_idx, (act, cat_key, _) in enumerate(grid[r_idx]):
+                    if act and cat_key:
+                        c = cat_colors.get(cat_key, {"bg": "#eee", "text": "#333"})
+                        html += (f'<td style="background:{c["bg"]};color:{c["text"]};'
+                                 f'font-weight:500">{act}</td>')
+                    else:
+                        html += '<td></td>'
             html += '</tr>'
 
         html += '</tbody></table></div>'
