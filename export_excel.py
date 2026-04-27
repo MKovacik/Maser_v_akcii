@@ -247,18 +247,6 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
             ws.cell(row=row, column=ci).border = THIN_BORDER
         row += 1
 
-    footer_rows = [(f"Ukončenie súťaže – {competition_end}",
-                    PatternFill("solid", fgColor="D9D9D9"))]
-    for label, fill in footer_rows:
-        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_sum_cols)
-        cell = ws.cell(row=row, column=1, value=label)
-        cell.font = FONT_BOLD
-        cell.alignment = ALIGN_CENTER
-        cell.fill = fill
-        for ci in range(1, num_sum_cols + 1):
-            ws.cell(row=row, column=ci).border = THIN_BORDER
-        row += 1
-
     row += 1
 
     # Timeline grid
@@ -320,22 +308,6 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
             if act:
                 cell.value = act
                 cell.fill = category_fill.get(cat, PatternFill())
-        row += 1
-
-    tl_footer = [
-        (competition_end, "Ukončenie súťaže", PatternFill("solid", fgColor="D9D9D9"))]
-    for time_str, label, fill in tl_footer:
-        cell = ws.cell(row=row, column=1, value=time_str)
-        cell.font = FONT_NORMAL
-        cell.alignment = ALIGN_CENTER
-        cell.border = THIN_BORDER
-        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=num_team_cols + 1)
-        c2 = ws.cell(row=row, column=2, value=label)
-        c2.font = FONT_BOLD
-        c2.alignment = ALIGN_CENTER
-        c2.fill = fill
-        for ci in range(2, num_team_cols + 2):
-            ws.cell(row=row, column=ci).border = THIN_BORDER
         row += 1
 
     ws.column_dimensions["A"].width = 16
@@ -430,19 +402,6 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
             ws_t.cell(row=r, column=4).border = THIN_BORDER
             ws_t.cell(row=r, column=4).alignment = ALIGN_CENTER
 
-            ws_t.row_dimensions[r].height = ROW_HEIGHT_ACTIVITY
-            r += 1
-
-        sheet_footer = [("Ukončenie súťaže", competition_end,
-                         PatternFill("solid", fgColor="D9D9D9"))]
-        for label, time_val, fill in sheet_footer:
-            for ci in range(1, 5):
-                ws_t.cell(row=r, column=ci).border = THIN_BORDER
-                ws_t.cell(row=r, column=ci).fill = fill
-            ws_t.cell(row=r, column=1, value=label).font = FONT_NORMAL
-            ws_t.cell(row=r, column=1).alignment = ALIGN_LEFT
-            ws_t.cell(row=r, column=2, value=time_val).font = FONT_NORMAL
-            ws_t.cell(row=r, column=2).alignment = ALIGN_CENTER
             ws_t.row_dimensions[r].height = ROW_HEIGHT_ACTIVITY
             r += 1
 
