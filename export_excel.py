@@ -172,7 +172,7 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
     legend_items = []
     for a in mas_acts:
         legend_items.append((category_fill.get(a.category, FILL_KLASICKA), a.name))
-    legend_items.append((FILL_SPORT, "Športové disciplíny (telocvičňa)"))
+    legend_items.append((FILL_SPORT, "Športové disciplíny (telocvičňa ZŠ)"))
     legend_items.append((category_fill.get(test_act.category, FILL_TEST), test_act.name))
     legend_items.append((FILL_PRESUN, "Presun medzi stanovišťami (~10 min)"))
     for ev in shared_events:
@@ -197,7 +197,7 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
 
     sum_headers = ["Tím"] + [a.name for a in mas_acts]
     sport_col = len(sum_headers) + 1
-    sum_headers.append("Športové (telocvičňa)")
+    sum_headers.append("Športové disciplíny (telocvičňa ZŠ)")
     test_col = len(sum_headers) + 1
     sum_headers.append(test_act.name)
     for ev in during_events:

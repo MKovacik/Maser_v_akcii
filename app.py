@@ -171,8 +171,8 @@ if "shared_events" not in st.session_state:
     st.session_state["shared_events"] = [dict(e) for e in DEFAULT_EVENTS]
 if "masaze_activities" not in st.session_state:
     st.session_state["masaze_activities"] = [
-        {"name": "Klasická masáž", "duration": 20, "abbr": "Klas."},
-        {"name": "Freestyle masáž", "duration": 20, "abbr": "Free."},
+        {"name": "Klasická masáž (Penzión Caritas)", "duration": 20, "abbr": "Klas."},
+        {"name": "Freestyle masáž (Penzión Caritas)", "duration": 20, "abbr": "Free."},
     ]
 if "sport_activities" not in st.session_state:
     st.session_state["sport_activities"] = [
@@ -180,6 +180,7 @@ if "sport_activities" not in st.session_state:
         {"name": "Ľah-sed", "duration": 5, "abbr": "Ľah-s."},
         {"name": "Beh na 50m", "duration": 5, "abbr": "Beh"},
         {"name": "Frisbee na cieľ", "duration": 5, "abbr": "Fris."},
+        {"name": "Zápis výsledkov", "duration": 5, "abbr": "Zápis"},
     ]
 if "test_activity" not in st.session_state:
     st.session_state["test_activity"] = {"name": "Test", "duration": 15, "abbr": "Test"}
@@ -425,7 +426,7 @@ if "schedule" in st.session_state:
     c = cat_colors["sport"]
     legend_html += (f'<span class="legend-item">'
                     f'<span class="legend-dot" style="background:{c["bg"]}"></span>'
-                    f'Športové</span>')
+                    f'Športové disciplíny (telocvičňa ZŠ)</span>')
     for a in config.test_activities:
         c = cat_colors[a.category]
         legend_html += (f'<span class="legend-item">'
@@ -454,7 +455,7 @@ if "schedule" in st.session_state:
         test_names = {a.name for a in config.test_activities}
 
         headers = ["Tím"] + [a.name for a in config.masaze_activities]
-        headers += ["Športové", config.test_activities[0].name]
+        headers += ["Športové disciplíny (telocvičňa ZŠ)", config.test_activities[0].name]
         for ev in during_events:
             headers.append(ev.name)
 
