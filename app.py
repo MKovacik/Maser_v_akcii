@@ -1,7 +1,7 @@
 """Streamlit app for Masér v akcii schedule generation."""
 import streamlit as st
 from datetime import time
-from solver import SolverConfig, SharedEvent, solve, min_to_time
+from solver import SolverConfig, SharedEvent, Activity, solve, min_to_time
 from export_excel import generate_excel
 import os
 import base64
@@ -166,9 +166,23 @@ def cat_badge(text, cat, cat_colors):
     return f'<span class="cat-badge" style="background:{c["bg"]};color:{c["text"]}">{text}</span>'
 
 
-# ── Initialize shared events in session state ──
+# ── Initialize session state ──
 if "shared_events" not in st.session_state:
     st.session_state["shared_events"] = [dict(e) for e in DEFAULT_EVENTS]
+if "masaze_activities" not in st.session_state:
+    st.session_state["masaze_activities"] = [
+        {"name": "Klasická masáž", "duration": 20, "abbr": "Klas."},
+        {"name": "Freestyle masáž", "duration": 20, "abbr": "Free."},
+    ]
+if "sport_activities" not in st.session_state:
+    st.session_state["sport_activities"] = [
+        {"name": "Hod medicinbalom", "duration": 5, "abbr": "Hod"},
+        {"name": "Ľah-sed", "duration": 5, "abbr": "Ľah-s."},
+        {"name": "Beh na 50m", "duration": 5, "abbr": "Beh"},
+        {"name": "Frisbee na cieľ", "duration": 5, "abbr": "Fris."},
+    ]
+if "test_activity" not in st.session_state:
+    st.session_state["test_activity"] = {"name": "Test", "duration": 15, "abbr": "Test"}
 
 
 # ── Sidebar ──
@@ -186,11 +200,41 @@ with st.sidebar:
         end_t = st.time_input("Koniec", value=time(13, 45))
 
     st.markdown("---")
-    st.markdown("**Trvanie aktivít (min)**")
-    klasicka_dur = st.number_input("Klasická masáž", min_value=10, max_value=40, value=20)
-    freestyle_dur = st.number_input("Freestyle masáž", min_value=10, max_value=40, value=20)
-    sport_dur_each = st.number_input("Športová disciplína (1 z 4)", min_value=3, max_value=15, value=5)
-    test_dur = st.number_input("Test", min_value=10, max_value=30, value=15)
+    st.markdown("**Stanovište: Masáže**")
+    for i, act in enumerate(st.session_state["masaze_activities"]):
+        with st.expander(act["name"], expanded=False):
+            act["name"] = st.text_input("Názov", value=act["name"], key=f"mas_name_{i}")
+            act["duration"] = st.number_input(
+                "Trvanie (min)", min_value=5, max_value=60,
+                value=act["duration"], key=f"mas_dur_{i}")
+
+    st.markdown("---")
+    st.markdown("**Stanovište: Šport**")
+    sport_to_delete = None
+    for i, act in enumerate(st.session_state["sport_activities"]):
+        with st.expander(act["name"], expanded=False):
+            act["name"] = st.text_input("Názov", value=act["name"], key=f"sport_name_{i}")
+            act["duration"] = st.number_input(
+                "Trvanie (min)", min_value=1, max_value=30,
+                value=act["duration"], key=f"sport_dur_{i}")
+            if len(st.session_state["sport_activities"]) > 1:
+                if st.button("Odstrániť", key=f"sport_del_{i}", type="secondary"):
+                    sport_to_delete = i
+    if sport_to_delete is not None:
+        st.session_state["sport_activities"].pop(sport_to_delete)
+        st.rerun()
+    if st.button("+ Pridať disciplínu", key="add_sport"):
+        st.session_state["sport_activities"].append(
+            {"name": "Nová disciplína", "duration": 5, "abbr": ""})
+        st.rerun()
+
+    st.markdown("---")
+    st.markdown("**Stanovište: Test**")
+    test_act = st.session_state["test_activity"]
+    test_act["name"] = st.text_input("Názov", value=test_act["name"], key="test_name")
+    test_act["duration"] = st.number_input(
+        "Trvanie (min)", min_value=5, max_value=60,
+        value=test_act["duration"], key="test_dur")
 
     st.markdown("---")
     st.markdown("**Presun**")
@@ -286,19 +330,24 @@ def build_cat_colors(shared_events):
 
 if generate:
     shared_events = build_shared_events()
+    mas_cats = ["klas", "free"]
     config = SolverConfig(
         num_teams=num_teams,
         start_time=time_to_min_ui(start_t),
         end_time=time_to_min_ui(end_t),
-        klasicka_duration=klasicka_dur,
-        freestyle_duration=freestyle_dur,
-        sport_disciplines=[
-            ("Hod medicinbalom", sport_dur_each),
-            ("Ľah-sed", sport_dur_each),
-            ("Beh na 50m", sport_dur_each),
-            ("Frisbee na cieľ", sport_dur_each),
+        masaze_activities=[
+            Activity(a["name"], a["duration"], a["abbr"], mas_cats[i])
+            for i, a in enumerate(st.session_state["masaze_activities"])
         ],
-        test_duration=test_dur,
+        sport_activities=[
+            Activity(a["name"], a["duration"], a["abbr"], "sport")
+            for a in st.session_state["sport_activities"]
+        ],
+        test_activities=[
+            Activity(st.session_state["test_activity"]["name"],
+                     st.session_state["test_activity"]["duration"],
+                     st.session_state["test_activity"]["abbr"], "test")
+        ],
         transfer_time=transfer,
         shared_events=shared_events,
     )
@@ -331,6 +380,7 @@ if "schedule" in st.session_state:
         competition_end=min_to_time(config.end_time),
         shared_events=config.shared_events,
         num_teams=config.num_teams,
+        config=config,
     )
 
     total_activities = sum(len(v) for v in result.values())
@@ -367,12 +417,20 @@ if "schedule" in st.session_state:
             type="primary", use_container_width=True)
 
     legend_html = '<div style="margin: 8px 0 20px 0;">'
-    for cat_key, label in [("klas", "Klasická masáž"), ("free", "Freestyle masáž"),
-                           ("sport", "Športové"), ("test", "Test")]:
-        c = cat_colors[cat_key]
+    for a in config.masaze_activities:
+        c = cat_colors[a.category]
         legend_html += (f'<span class="legend-item">'
                         f'<span class="legend-dot" style="background:{c["bg"]}"></span>'
-                        f'{label}</span>')
+                        f'{a.name}</span>')
+    c = cat_colors["sport"]
+    legend_html += (f'<span class="legend-item">'
+                    f'<span class="legend-dot" style="background:{c["bg"]}"></span>'
+                    f'Športové</span>')
+    for a in config.test_activities:
+        c = cat_colors[a.category]
+        legend_html += (f'<span class="legend-item">'
+                        f'<span class="legend-dot" style="background:{c["bg"]}"></span>'
+                        f'{a.name}</span>')
     for ev in config.shared_events:
         c = cat_colors.get(ev.category, {"bg": ev.color_bg})
         legend_html += (f'<span class="legend-item">'
@@ -390,7 +448,13 @@ if "schedule" in st.session_state:
     tab1, tab2, tab3 = st.tabs(["Prehľad", "Časová os", "Po tímoch"])
 
     with tab1:
-        headers = ["Tím", "Klasická masáž", "Freestyle masáž", "Športové", "Test"]
+        mas_cats = [a.category for a in config.masaze_activities]
+        test_cat = config.test_activities[0].category
+        mas_names = {a.name for a in config.masaze_activities}
+        test_names = {a.name for a in config.test_activities}
+
+        headers = ["Tím"] + [a.name for a in config.masaze_activities]
+        headers += ["Športové", config.test_activities[0].name]
         for ev in during_events:
             headers.append(ev.name)
 
@@ -404,7 +468,9 @@ if "schedule" in st.session_state:
             html += f'<td style="font-weight:600;background:#f0f4f8;color:#1F4E79">Team {t_id}</td>'
 
             sport_entries = [(s, e) for name, s, e, c in result[t_id] if c == "sport"]
-            cells = {"klas": "", "free": "", "sport": "", "test": ""}
+            cells = {cat: "" for cat in mas_cats}
+            cells["sport"] = ""
+            cells[test_cat] = ""
             for ev in during_events:
                 cells[ev.category] = ""
 
@@ -412,18 +478,16 @@ if "schedule" in st.session_state:
                 cells["sport"] = f"{sport_entries[0][0]} – {sport_entries[-1][1]}"
 
             for name, s, e, cat in result[t_id]:
-                if name == "Klasická masáž":
-                    cells["klas"] = f"{s} – {e}"
-                elif name == "Freestyle masáž":
-                    cells["free"] = f"{s} – {e}"
-                elif name == "Test":
-                    cells["test"] = f"{s} – {e}"
+                if name in mas_names:
+                    cells[cat] = f"{s} – {e}"
+                elif name in test_names:
+                    cells[cat] = f"{s} – {e}"
                 else:
                     for ev in during_events:
                         if name == ev.name:
                             cells[ev.category] = f"{s} – {e}"
 
-            col_cats = ["klas", "free", "sport", "test"] + [ev.category for ev in during_events]
+            col_cats = mas_cats + ["sport", test_cat] + [ev.category for ev in during_events]
             for cat_key in col_cats:
                 if cells.get(cat_key):
                     c = cat_colors.get(cat_key, {"bg": "#eee", "text": "#333"})
@@ -447,9 +511,8 @@ if "schedule" in st.session_state:
         tl_start = min(all_starts)
         tl_end = max(all_starts)
 
-        abbrevs = {"Klasická masáž": "Klas.", "Freestyle masáž": "Free.",
-                   "Hod medicinbalom": "Hod", "Frisbee na cieľ": "Fris.",
-                   "Beh na 50m": "Beh", "Ľah-sed": "Ľah-s."}
+        abbrevs = {a.name: a.abbreviation for a in
+                   config.masaze_activities + config.sport_activities + config.test_activities}
 
         tl_data = {}
         tl_full = {}

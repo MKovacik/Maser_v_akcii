@@ -53,19 +53,36 @@ class SharedEvent:
 
 
 @dataclass
+class Activity:
+    name: str
+    duration: int
+    abbreviation: str = ""
+    category: str = ""
+
+    def __post_init__(self):
+        if not self.abbreviation:
+            word = self.name.split()[0]
+            self.abbreviation = word if len(word) <= 6 else word[:5] + "."
+
+
+@dataclass
 class SolverConfig:
     num_teams: int = 11
     start_time: int = 525       # 08:45
     end_time: int = 825         # 13:45
-    klasicka_duration: int = 20
-    freestyle_duration: int = 20
-    sport_disciplines: list[tuple[str, int]] = field(default_factory=lambda: [
-        ("Hod medicinbalom", 5),
-        ("Ľah-sed", 5),
-        ("Beh na 50m", 5),
-        ("Frisbee na cieľ", 5),
+    masaze_activities: list[Activity] = field(default_factory=lambda: [
+        Activity("Klasická masáž", 20, "Klas.", "klas"),
+        Activity("Freestyle masáž", 20, "Free.", "free"),
     ])
-    test_duration: int = 15
+    sport_activities: list[Activity] = field(default_factory=lambda: [
+        Activity("Hod medicinbalom", 5, "Hod", "sport"),
+        Activity("Ľah-sed", 5, "Ľah-s.", "sport"),
+        Activity("Beh na 50m", 5, "Beh", "sport"),
+        Activity("Frisbee na cieľ", 5, "Fris.", "sport"),
+    ])
+    test_activities: list[Activity] = field(default_factory=lambda: [
+        Activity("Test", 15, "Test", "test"),
+    ])
     transfer_time: int = 10
     shared_events: list[SharedEvent] = field(default_factory=lambda: [
         SharedEvent(
@@ -77,11 +94,36 @@ class SolverConfig:
 
     @property
     def masaze_duration(self):
-        return self.klasicka_duration + self.freestyle_duration
+        return sum(a.duration for a in self.masaze_activities)
 
     @property
     def sport_duration(self):
-        return sum(d for _, d in self.sport_disciplines)
+        return sum(a.duration for a in self.sport_activities)
+
+    @property
+    def test_duration(self):
+        return self.test_activities[0].duration
+
+    @property
+    def all_activity_names(self) -> set:
+        return ({a.name for a in self.masaze_activities}
+                | {a.name for a in self.sport_activities}
+                | {a.name for a in self.test_activities})
+
+    def get_station(self, name: str):
+        if name in {a.name for a in self.masaze_activities}:
+            return "masaze"
+        if name in {a.name for a in self.sport_activities}:
+            return "sport"
+        if name in {a.name for a in self.test_activities}:
+            return "test"
+        return None
+
+    def get_abbreviation(self, name: str) -> str:
+        for a in self.masaze_activities + self.sport_activities + self.test_activities:
+            if a.name == name:
+                return a.abbreviation
+        return name
 
 
 def min_to_time(m: int) -> str:
@@ -94,8 +136,8 @@ def solve(config: SolverConfig):
     H = config.start_time
     H_end = config.end_time
     D_mas = config.masaze_duration
-    D_klas = config.klasicka_duration
-    D_free = config.freestyle_duration
+    D_klas = config.masaze_activities[0].duration
+    D_free = config.masaze_activities[1].duration
     D_sport = config.sport_duration
     D_test = config.test_duration
     TRANSFER = config.transfer_time
@@ -188,17 +230,23 @@ def solve(config: SolverConfig):
         entries = []
 
         ms = solver.value(masaze_start[t])
-        entries.append(("Klasická masáž", min_to_time(ms), min_to_time(ms + D_klas), "klas"))
-        entries.append(("Freestyle masáž", min_to_time(ms + D_klas), min_to_time(ms + D_mas), "free"))
+        offset = 0
+        for a in config.masaze_activities:
+            entries.append((a.name, min_to_time(ms + offset),
+                            min_to_time(ms + offset + a.duration), a.category))
+            offset += a.duration
 
         ss = solver.value(sport_start[t])
         offset = 0
-        for name, dur in config.sport_disciplines:
-            entries.append((name, min_to_time(ss + offset), min_to_time(ss + offset + dur), "sport"))
-            offset += dur
+        for a in config.sport_activities:
+            entries.append((a.name, min_to_time(ss + offset),
+                            min_to_time(ss + offset + a.duration), a.category))
+            offset += a.duration
 
         ts = solver.value(test_start[t])
-        entries.append(("Test", min_to_time(ts), min_to_time(ts + D_test), "test"))
+        for a in config.test_activities:
+            entries.append((a.name, min_to_time(ts),
+                            min_to_time(ts + a.duration), a.category))
 
         for ev in config.shared_events:
             ev_start = ev.get_start_for_team(t, N)

@@ -36,11 +36,6 @@ CATEGORY_FILL_BASE = {
 ROW_HEIGHT_ACTIVITY = 30
 ROW_HEIGHT_HEADER = 20
 
-COMPETITION_STATIONS = {"Klasická masáž", "Freestyle masáž",
-                        "Hod medicinbalom", "Ľah-sed", "Beh na 50m",
-                        "Frisbee na cieľ", "Test"}
-
-
 def time_to_min(s):
     h, m = s.split(":")
     return int(h) * 60 + int(m)
@@ -50,26 +45,14 @@ def min_to_time(m):
     return f"{m // 60:02d}:{m % 60:02d}"
 
 
-def get_station(act_name, shared_names):
-    if act_name in ("Klasická masáž", "Freestyle masáž"):
-        return "masaze"
-    if act_name in ("Hod medicinbalom", "Ľah-sed", "Beh na 50m", "Frisbee na cieľ"):
-        return "sport"
-    if act_name == "Test":
-        return "test"
-    if act_name in shared_names:
-        return "shared"
-    return None
-
-
-def add_transfers(schedule, shared_names):
+def add_transfers(schedule, shared_names, station_lookup):
     result = []
     for i, (act, start, end, cat) in enumerate(schedule):
         result.append((act, start, end, cat))
         if i < len(schedule) - 1:
             next_act, next_start, _, _ = schedule[i + 1]
-            curr_st = get_station(act, shared_names)
-            next_st = get_station(next_act, shared_names)
+            curr_st = station_lookup(act, shared_names)
+            next_st = station_lookup(next_act, shared_names)
             if (curr_st and next_st and curr_st != next_st
                     and curr_st != "shared" and next_st != "shared"):
                 gap = time_to_min(next_start) - time_to_min(end)
@@ -79,7 +62,8 @@ def add_transfers(schedule, shared_names):
 
 
 def generate_excel(teams, logo_path=None, competition_start="08:45",
-                   competition_end="13:45", shared_events=None, num_teams=None):
+                   competition_end="13:45", shared_events=None, num_teams=None,
+                   config=None):
     """Generate Excel bytes from teams dict. Returns bytes."""
     if shared_events is None:
         shared_events = []
@@ -104,7 +88,26 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
     for ev in shared_events:
         category_fill[ev.category] = PatternFill("solid", fgColor=ev.color_bg.lstrip("#"))
 
-    teams_with_transfers = {t: add_transfers(teams[t], shared_names) for t in teams}
+    def station_lookup(act_name, sn):
+        if config:
+            st = config.get_station(act_name)
+            if st:
+                return st
+        if act_name in sn:
+            return "shared"
+        return None
+
+    if config:
+        from solver import Activity
+        mas_acts = config.masaze_activities
+        test_act = config.test_activities[0]
+    else:
+        from solver import Activity
+        mas_acts = [Activity("Klasická masáž", 20, "Klas.", "klas"),
+                    Activity("Freestyle masáž", 20, "Free.", "free")]
+        test_act = Activity("Test", 15, "Test", "test")
+
+    teams_with_transfers = {t: add_transfers(teams[t], shared_names, station_lookup) for t in teams}
 
     wb = openpyxl.Workbook()
 
@@ -166,11 +169,12 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=13)
     ws.cell(row=row, column=1, value="Legenda farieb:").font = FONT_BOLD
     row += 1
-    legend_items = [
-        (FILL_KLASICKA, "Klasická masáž"), (FILL_FREESTYLE, "Freestyle masáž"),
-        (FILL_SPORT, "Športové disciplíny (telocvičňa)"), (FILL_TEST, "Test"),
-        (FILL_PRESUN, "Presun medzi stanovišťami (~10 min)"),
-    ]
+    legend_items = []
+    for a in mas_acts:
+        legend_items.append((category_fill.get(a.category, FILL_KLASICKA), a.name))
+    legend_items.append((FILL_SPORT, "Športové disciplíny (telocvičňa)"))
+    legend_items.append((category_fill.get(test_act.category, FILL_TEST), test_act.name))
+    legend_items.append((FILL_PRESUN, "Presun medzi stanovišťami (~10 min)"))
     for ev in shared_events:
         legend_items.append((category_fill[ev.category], ev.name))
     for fill, label in legend_items:
@@ -191,7 +195,11 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
         name="Calibri", size=13, bold=True)
     row += 1
 
-    sum_headers = ["Tím", "Klasická masáž", "Freestyle masáž", "Športové (telocvičňa)", "Test"]
+    sum_headers = ["Tím"] + [a.name for a in mas_acts]
+    sport_col = len(sum_headers) + 1
+    sum_headers.append("Športové (telocvičňa)")
+    test_col = len(sum_headers) + 1
+    sum_headers.append(test_act.name)
     for ev in during_events:
         sum_headers.append(ev.name)
     num_sum_cols = len(sum_headers)
@@ -212,18 +220,19 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
 
         sport_entries = [(s, e) for name, s, e, c in teams[t_id] if c == "sport"]
         if sport_entries:
-            c2 = ws.cell(row=row, column=4,
+            c2 = ws.cell(row=row, column=sport_col,
                          value=f"{sport_entries[0][0]} – {sport_entries[-1][1]}")
             c2.font = FONT_NORMAL
             c2.alignment = ALIGN_CENTER
             c2.border = THIN_BORDER
             c2.fill = FILL_SPORT
 
-        col_map = {"Klasická masáž": (2, FILL_KLASICKA),
-                   "Freestyle masáž": (3, FILL_FREESTYLE),
-                   "Test": (5, FILL_TEST)}
+        col_map = {}
+        for ci, a in enumerate(mas_acts, 2):
+            col_map[a.name] = (ci, category_fill.get(a.category, FILL_KLASICKA))
+        col_map[test_act.name] = (test_col, category_fill.get(test_act.category, FILL_TEST))
         for idx, ev in enumerate(during_events):
-            col_map[ev.name] = (6 + idx, category_fill[ev.category])
+            col_map[ev.name] = (test_col + 1 + idx, category_fill[ev.category])
 
         for act_name, start, end, cat in teams[t_id]:
             if act_name in col_map:
@@ -281,9 +290,7 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
         timeline = {}
         for act_name, start, end, cat in teams_with_transfers[t_id]:
             s, e = time_to_min(start), time_to_min(end)
-            short = {"Klasická masáž": "Klas. masáž", "Freestyle masáž": "Free. masáž",
-                     "Hod medicinbalom": "Hod med.", "Frisbee na cieľ": "Frisbee",
-                     "Beh na 50m": "Beh 50m"}.get(act_name, act_name)
+            short = config.get_abbreviation(act_name) if config else act_name
             for m in range(s, e):
                 timeline[m] = (short, cat)
         team_timeline[t_id] = timeline
