@@ -89,6 +89,10 @@ class SolverConfig:
             color_bg="#F8CBAD", color_text="#5a2a00",
             num_groups=2, group_starts=[660, 750],
         ),
+        SharedEvent(
+            name="Ukončenie súťaže", start_time=825, duration=5,
+            color_bg="#D9D9D9", color_text="#333333",
+        ),
     ])
 
     @property

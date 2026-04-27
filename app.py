@@ -26,6 +26,8 @@ DEFAULT_EVENTS = [
     {"name": "Obed", "start": time(11, 0), "dur": 30, "color": "#F8CBAD",
      "groups": True, "num_groups": 2,
      "g_starts": [time(11, 0), time(12, 30)], "g_sizes": [6, 5]},
+    {"name": "Ukončenie súťaže", "start": time(13, 45), "dur": 5, "color": "#D9D9D9",
+     "groups": False, "num_groups": 1, "g_starts": [], "g_sizes": []},
     {"name": "Sprievodný program", "start": time(14, 0), "dur": 45, "color": "#D9D9D9",
      "groups": False, "num_groups": 1, "g_starts": [], "g_sizes": []},
     {"name": "Vyhlásenie výsledkov", "start": time(15, 0), "dur": 30, "color": "#D9D9D9",
