@@ -78,23 +78,25 @@ st.markdown("""
     }
 
     .timeline-table {
-        width: 100%; border-collapse: collapse; font-size: 0.75rem;
+        border-collapse: collapse; font-size: 0.75rem;
         border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
     .timeline-table thead th {
-        background: #1F4E79; color: white; padding: 6px 4px;
+        background: #1F4E79; color: white; padding: 6px 6px;
         text-align: center; font-weight: 600; font-size: 0.75rem;
         position: sticky; top: 0; z-index: 1;
+        min-width: 60px;
     }
     .timeline-table tbody td {
-        padding: 4px 2px; text-align: center; border: 1px solid #e0e0e0;
-        font-size: 0.7rem; white-space: nowrap;
+        padding: 4px 4px; text-align: center; border: 1px solid #e0e0e0;
+        font-size: 0.7rem; white-space: nowrap; min-width: 60px;
     }
     .timeline-table tbody td.time-col {
         font-weight: 600; background: #f0f4f8; padding: 4px 6px; color: #333;
+        min-width: 50px;
     }
     .timeline-wrap {
-        max-height: 600px; overflow-y: auto; border-radius: 8px; border: 1px solid #e0e0e0;
+        max-height: 600px; overflow: auto; border-radius: 8px; border: 1px solid #e0e0e0;
     }
 
     .team-detail-table {
@@ -271,6 +273,7 @@ def build_shared_events():
             group_starts=group_starts,
             group_sizes=group_sizes,
         ))
+    result.sort(key=lambda e: e.start_time)
     return result
 
 
