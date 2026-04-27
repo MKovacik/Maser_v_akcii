@@ -8,16 +8,12 @@ from openpyxl.drawing.image import Image as XlImage
 from openpyxl.utils.units import cm_to_EMU, pixels_to_EMU
 from openpyxl.drawing.spreadsheet_drawing import OneCellAnchor, AnchorMarker
 from openpyxl.drawing.xdr import XDRPositiveSize2D
-from math import ceil
 
 FILL_HEADER = PatternFill("solid", fgColor="1F4E79")
 FILL_KLASICKA = PatternFill("solid", fgColor="BDD7EE")
 FILL_FREESTYLE = PatternFill("solid", fgColor="9BC2E6")
 FILL_SPORT = PatternFill("solid", fgColor="C6EFCE")
 FILL_TEST = PatternFill("solid", fgColor="FFE699")
-FILL_OBED = PatternFill("solid", fgColor="F8CBAD")
-FILL_REG = PatternFill("solid", fgColor="D9D9D9")
-FILL_CEREMONY = PatternFill("solid", fgColor="D9D9D9")
 FILL_PRESUN = PatternFill("solid", fgColor="E2EFDA")
 
 FONT_HEADER = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
@@ -32,14 +28,17 @@ THIN_BORDER = Border(
     top=Side(style="thin"), bottom=Side(style="thin"),
 )
 
-CATEGORY_FILL = {
+CATEGORY_FILL_BASE = {
     "klas": FILL_KLASICKA, "free": FILL_FREESTYLE,
-    "sport": FILL_SPORT, "test": FILL_TEST,
-    "obed": FILL_OBED, "presun": FILL_PRESUN,
+    "sport": FILL_SPORT, "test": FILL_TEST, "presun": FILL_PRESUN,
 }
 
 ROW_HEIGHT_ACTIVITY = 30
 ROW_HEIGHT_HEADER = 20
+
+COMPETITION_STATIONS = {"Klasická masáž", "Freestyle masáž",
+                        "Hod medicinbalom", "Ľah-sed", "Beh na 50m",
+                        "Frisbee na cieľ", "Test"}
 
 
 def time_to_min(s):
@@ -51,28 +50,28 @@ def min_to_time(m):
     return f"{m // 60:02d}:{m % 60:02d}"
 
 
-def get_station(act_name):
+def get_station(act_name, shared_names):
     if act_name in ("Klasická masáž", "Freestyle masáž"):
         return "masaze"
     if act_name in ("Hod medicinbalom", "Ľah-sed", "Beh na 50m", "Frisbee na cieľ"):
         return "sport"
     if act_name == "Test":
         return "test"
-    if act_name == "Obed":
-        return "obed"
+    if act_name in shared_names:
+        return "shared"
     return None
 
 
-def add_transfers(schedule):
+def add_transfers(schedule, shared_names):
     result = []
     for i, (act, start, end, cat) in enumerate(schedule):
         result.append((act, start, end, cat))
         if i < len(schedule) - 1:
             next_act, next_start, _, _ = schedule[i + 1]
-            curr_st = get_station(act)
-            next_st = get_station(next_act)
+            curr_st = get_station(act, shared_names)
+            next_st = get_station(next_act, shared_names)
             if (curr_st and next_st and curr_st != next_st
-                    and curr_st != "obed" and next_st != "obed"):
+                    and curr_st != "shared" and next_st != "shared"):
                 gap = time_to_min(next_start) - time_to_min(end)
                 if gap >= 10:
                     result.append(("Presun", end, min_to_time(time_to_min(end) + 10), "presun"))
@@ -80,13 +79,32 @@ def add_transfers(schedule):
 
 
 def generate_excel(teams, logo_path=None, competition_start="08:45",
-                   competition_end="13:45", lunch_group1_size=0):
+                   competition_end="13:45", shared_events=None, num_teams=None):
     """Generate Excel bytes from teams dict. Returns bytes."""
-    num_teams = len(teams)
-    if lunch_group1_size <= 0:
-        lunch_group1_size = ceil(num_teams / 2)
+    if shared_events is None:
+        shared_events = []
+    if num_teams is None:
+        num_teams = len(teams)
 
-    teams_with_transfers = {t: add_transfers(teams[t]) for t in teams}
+    comp_start_min = time_to_min(competition_start)
+    comp_end_min = time_to_min(competition_end)
+
+    shared_names = {ev.name for ev in shared_events}
+    during_events = sorted(
+        [ev for ev in shared_events if ev.overlaps_window(comp_start_min, comp_end_min)],
+        key=lambda e: e.start_time)
+    pre_events = sorted(
+        [ev for ev in shared_events if ev.end_time <= comp_start_min],
+        key=lambda e: e.start_time)
+    post_events = sorted(
+        [ev for ev in shared_events if ev.start_time >= comp_end_min],
+        key=lambda e: e.start_time)
+
+    category_fill = dict(CATEGORY_FILL_BASE)
+    for ev in shared_events:
+        category_fill[ev.category] = PatternFill("solid", fgColor=ev.color_bg.lstrip("#"))
+
+    teams_with_transfers = {t: add_transfers(teams[t], shared_names) for t in teams}
 
     wb = openpyxl.Workbook()
 
@@ -105,18 +123,30 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
     ws["A3"].font = Font(name="Calibri", size=13, bold=True)
     ws["A3"].alignment = ALIGN_LEFT
 
-    general_events = [
-        ("08:00 – 08:30", "Registrácia účastníkov, losovanie poradia"),
-        ("08:30", "Otvorenie súťaže"),
-        (competition_start, "Začiatok súťaže"),
-        ("11:00 – 11:30", f"Obed – skupiny 1 až {lunch_group1_size}"),
-        ("12:30 – 13:00", f"Obed – skupiny {lunch_group1_size + 1} až {num_teams}"),
-        (competition_end, "Ukončenie súťaže"),
-        ("13:45 – 14:00", "Presun"),
-        ("14:00 – 14:45", "Sprievodný program"),
-        ("14:45 – 15:00", "Presun"),
-        ("15:00 – 15:30", "Vyhlásenie výsledkov"),
-    ]
+    general_events = []
+    for ev in pre_events:
+        general_events.append((
+            f"{min_to_time(ev.start_time)} – {min_to_time(ev.end_time)}", ev.name))
+    general_events.append((competition_start, "Začiatok súťaže"))
+    for ev in during_events:
+        if ev.num_groups > 1:
+            sizes = ev.effective_group_sizes(num_teams)
+            cumul = 0
+            for g in range(ev.num_groups):
+                gs = ev.group_starts[g]
+                start_team = cumul + 1
+                cumul += sizes[g]
+                end_team = cumul
+                general_events.append((
+                    f"{min_to_time(gs)} – {min_to_time(gs + ev.duration)}",
+                    f"{ev.name} – skupiny {start_team} až {end_team}"))
+        else:
+            general_events.append((
+                f"{min_to_time(ev.start_time)} – {min_to_time(ev.end_time)}", ev.name))
+    general_events.append((competition_end, "Ukončenie súťaže"))
+    for ev in post_events:
+        general_events.append((
+            f"{min_to_time(ev.start_time)} – {min_to_time(ev.end_time)}", ev.name))
 
     row = 4
     for time_str, desc in general_events:
@@ -136,11 +166,14 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=13)
     ws.cell(row=row, column=1, value="Legenda farieb:").font = FONT_BOLD
     row += 1
-    for fill, label in [
+    legend_items = [
         (FILL_KLASICKA, "Klasická masáž"), (FILL_FREESTYLE, "Freestyle masáž"),
         (FILL_SPORT, "Športové disciplíny (telocvičňa)"), (FILL_TEST, "Test"),
-        (FILL_OBED, "Obed"), (FILL_PRESUN, "Presun medzi stanovišťami (~10 min)"),
-    ]:
+        (FILL_PRESUN, "Presun medzi stanovišťami (~10 min)"),
+    ]
+    for ev in shared_events:
+        legend_items.append((category_fill[ev.category], ev.name))
+    for fill, label in legend_items:
         ws.cell(row=row, column=1).fill = fill
         ws.cell(row=row, column=1).border = THIN_BORDER
         ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=5)
@@ -154,11 +187,16 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
 
     # Summary table
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=13)
-    ws.cell(row=row, column=1, value="Prehľad stanovíšť podľa tímov").font = Font(name="Calibri", size=13, bold=True)
+    ws.cell(row=row, column=1, value="Prehľad stanovíšť podľa tímov").font = Font(
+        name="Calibri", size=13, bold=True)
     row += 1
 
-    for ci, h in enumerate(["Tím", "Klasická masáž", "Freestyle masáž",
-                             "Športové (telocvičňa)", "Test", "Obed"], 1):
+    sum_headers = ["Tím", "Klasická masáž", "Freestyle masáž", "Športové (telocvičňa)", "Test"]
+    for ev in during_events:
+        sum_headers.append(ev.name)
+    num_sum_cols = len(sum_headers)
+
+    for ci, h in enumerate(sum_headers, 1):
         cell = ws.cell(row=row, column=ci, value=h)
         cell.font = FONT_HEADER
         cell.fill = FILL_HEADER
@@ -174,14 +212,19 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
 
         sport_entries = [(s, e) for name, s, e, c in teams[t_id] if c == "sport"]
         if sport_entries:
-            c2 = ws.cell(row=row, column=4, value=f"{sport_entries[0][0]} – {sport_entries[-1][1]}")
+            c2 = ws.cell(row=row, column=4,
+                         value=f"{sport_entries[0][0]} – {sport_entries[-1][1]}")
             c2.font = FONT_NORMAL
             c2.alignment = ALIGN_CENTER
             c2.border = THIN_BORDER
             c2.fill = FILL_SPORT
 
-        col_map = {"Klasická masáž": (2, FILL_KLASICKA), "Freestyle masáž": (3, FILL_FREESTYLE),
-                   "Test": (5, FILL_TEST), "Obed": (6, FILL_OBED)}
+        col_map = {"Klasická masáž": (2, FILL_KLASICKA),
+                   "Freestyle masáž": (3, FILL_FREESTYLE),
+                   "Test": (5, FILL_TEST)}
+        for idx, ev in enumerate(during_events):
+            col_map[ev.name] = (6 + idx, category_fill[ev.category])
+
         for act_name, start, end, cat in teams[t_id]:
             if act_name in col_map:
                 col, fill = col_map[act_name]
@@ -191,31 +234,33 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
                 c2.border = THIN_BORDER
                 c2.fill = fill
 
-        for ci in range(1, 7):
+        for ci in range(1, num_sum_cols + 1):
             ws.cell(row=row, column=ci).border = THIN_BORDER
         row += 1
 
-    for label, fill in [
-        (f"Ukončenie súťaže – {competition_end}", FILL_CEREMONY),
-        ("Presun – 13:45 – 14:00", FILL_REG),
-        ("Sprievodný program – 14:00 – 14:45", FILL_REG),
-        ("Presun – 14:45 – 15:00", FILL_REG),
-        ("Vyhlásenie výsledkov – 15:00 – 15:30", FILL_CEREMONY),
-    ]:
-        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=6)
+    footer_rows = [(f"Ukončenie súťaže – {competition_end}",
+                    PatternFill("solid", fgColor="D9D9D9"))]
+    for ev in post_events:
+        footer_rows.append((
+            f"{ev.name} – {min_to_time(ev.start_time)} – {min_to_time(ev.end_time)}",
+            category_fill[ev.category]))
+    for label, fill in footer_rows:
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_sum_cols)
         cell = ws.cell(row=row, column=1, value=label)
         cell.font = FONT_BOLD
         cell.alignment = ALIGN_CENTER
         cell.fill = fill
-        for ci in range(1, 7):
+        for ci in range(1, num_sum_cols + 1):
             ws.cell(row=row, column=ci).border = THIN_BORDER
         row += 1
 
     row += 1
 
     # Timeline grid
-    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_teams + 1)
-    ws.cell(row=row, column=1, value="Časová os (5-minútové intervaly)").font = Font(name="Calibri", size=13, bold=True)
+    num_team_cols = len(teams)
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_team_cols + 1)
+    ws.cell(row=row, column=1, value="Časová os (5-minútové intervaly)").font = Font(
+        name="Calibri", size=13, bold=True)
     row += 1
 
     cell = ws.cell(row=row, column=1, value="Čas")
@@ -243,10 +288,17 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
                 timeline[m] = (short, cat)
         team_timeline[t_id] = timeline
 
-    start_min = time_to_min(competition_start)
-    end_min = time_to_min(competition_end)
+    all_times = [comp_start_min, comp_end_min]
+    for ev in shared_events:
+        if ev.num_groups > 1:
+            all_times.extend(ev.group_starts)
+            all_times.extend([gs + ev.duration for gs in ev.group_starts])
+        else:
+            all_times.extend([ev.start_time, ev.end_time])
+    tl_start = min(all_times)
+    tl_end = max(all_times)
 
-    for slot in range(start_min, end_min, 5):
+    for slot in range(tl_start, tl_end, 5):
         cell = ws.cell(row=row, column=1, value=min_to_time(slot))
         cell.font = FONT_NORMAL
         cell.alignment = ALIGN_CENTER
@@ -254,7 +306,7 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
         for i, t_id in enumerate(sorted(teams.keys()), 1):
             tl = team_timeline[t_id]
             act, cat = None, None
-            for m in range(slot, min(slot + 5, end_min)):
+            for m in range(slot, min(slot + 5, tl_end)):
                 if m in tl:
                     act, cat = tl[m]
                     break
@@ -264,31 +316,31 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
             cell.font = Font(name="Calibri", size=9)
             if act:
                 cell.value = act
-                cell.fill = CATEGORY_FILL.get(cat, PatternFill())
+                cell.fill = category_fill.get(cat, PatternFill())
         row += 1
 
-    for time_str, label, fill in [
-        (competition_end, "Ukončenie súťaže", FILL_CEREMONY),
-        ("13:45 – 14:00", "Presun", FILL_REG),
-        ("14:00 – 14:45", "Sprievodný program", FILL_REG),
-        ("14:45 – 15:00", "Presun", FILL_REG),
-        ("15:00 – 15:30", "Vyhlásenie výsledkov", FILL_CEREMONY),
-    ]:
+    tl_footer = [
+        (competition_end, "Ukončenie súťaže", PatternFill("solid", fgColor="D9D9D9"))]
+    for ev in post_events:
+        tl_footer.append((
+            f"{min_to_time(ev.start_time)} – {min_to_time(ev.end_time)}",
+            ev.name, category_fill[ev.category]))
+    for time_str, label, fill in tl_footer:
         cell = ws.cell(row=row, column=1, value=time_str)
         cell.font = FONT_NORMAL
         cell.alignment = ALIGN_CENTER
         cell.border = THIN_BORDER
-        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=num_teams + 1)
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=num_team_cols + 1)
         c2 = ws.cell(row=row, column=2, value=label)
         c2.font = FONT_BOLD
         c2.alignment = ALIGN_CENTER
         c2.fill = fill
-        for ci in range(2, num_teams + 2):
+        for ci in range(2, num_team_cols + 2):
             ws.cell(row=row, column=ci).border = THIN_BORDER
         row += 1
 
     ws.column_dimensions["A"].width = 16
-    for ci in range(2, num_teams + 2):
+    for ci in range(2, num_team_cols + 2):
         ws.column_dimensions[get_column_letter(ci)].width = 14
 
     # ═══ PER-TEAM SHEETS ═══
@@ -297,7 +349,6 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
     for t_id in sorted(teams.keys()):
         ws_t = wb.create_sheet(title=f"Team {t_id}")
 
-        # Logo
         if has_logo:
             ws_t.row_dimensions[1].height = 60
             ws_t.row_dimensions[2].height = 6
@@ -310,7 +361,6 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
         else:
             title_row = 1
 
-        # Title
         ws_t.merge_cells(f"A{title_row}:D{title_row}")
         c = ws_t.cell(row=title_row, column=1)
         c.value = "MASÉR V AKCII"
@@ -318,25 +368,24 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
         c.alignment = ALIGN_CENTER
         ws_t.row_dimensions[title_row].height = 30
 
-        # Spacer
         info_row = title_row + 2
         ws_t.row_dimensions[title_row + 1].height = 6
 
-        # Team info
         ws_t.merge_cells(f"A{info_row}:B{info_row}")
-        ws_t.cell(row=info_row, column=1, value=f"Družstvo č. {t_id}").font = Font(name="Calibri", size=14, bold=True)
+        ws_t.cell(row=info_row, column=1,
+                  value=f"Družstvo č. {t_id}").font = Font(name="Calibri", size=14, bold=True)
         ws_t.cell(row=info_row, column=1).alignment = ALIGN_LEFT
         ws_t.cell(row=info_row, column=1).border = THIN_BORDER
         ws_t.cell(row=info_row, column=2).border = THIN_BORDER
 
         ws_t.merge_cells(f"C{info_row}:D{info_row}")
-        ws_t.cell(row=info_row, column=3, value="Škola:").font = Font(name="Calibri", size=14, bold=True)
+        ws_t.cell(row=info_row, column=3,
+                  value="Škola:").font = Font(name="Calibri", size=14, bold=True)
         ws_t.cell(row=info_row, column=3).alignment = ALIGN_LEFT
         ws_t.cell(row=info_row, column=3).border = THIN_BORDER
         ws_t.cell(row=info_row, column=4).border = THIN_BORDER
         ws_t.row_dimensions[info_row].height = 25
 
-        # Table headers
         hdr_row = info_row + 2
         for ci, hdr in enumerate(["Aktivita", "Čas", "Poznámka", "Body"], 1):
             cell = ws_t.cell(row=hdr_row, column=ci, value=hdr)
@@ -347,12 +396,23 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
         ws_t.row_dimensions[hdr_row].height = ROW_HEIGHT_HEADER
         r = hdr_row + 1
 
-        lunch_group = (f"1. skupina (tímy 1–{lunch_group1_size})"
-                       if t_id <= lunch_group1_size
-                       else f"2. skupina (tímy {lunch_group1_size + 1}–{num_teams})")
+        # Build group notes for grouped shared events
+        group_notes = {}
+        for ev in during_events:
+            if ev.num_groups > 1:
+                sizes = ev.effective_group_sizes(num_teams)
+                cumul = 0
+                for g in range(ev.num_groups):
+                    start_team = cumul + 1
+                    cumul += sizes[g]
+                    end_team = cumul
+                    if t_id >= start_team and t_id <= end_team:
+                        group_notes[ev.name] = (
+                            f"{g+1}. skupina (tímy {start_team}–{end_team})")
+                        break
 
         for act_name, start, end, cat in teams_with_transfers[t_id]:
-            fill = CATEGORY_FILL.get(cat, PatternFill())
+            fill = category_fill.get(cat, PatternFill())
             ws_t.cell(row=r, column=1, value=act_name).font = FONT_NORMAL
             ws_t.cell(row=r, column=1).alignment = ALIGN_LEFT
             ws_t.cell(row=r, column=1).border = THIN_BORDER
@@ -363,7 +423,7 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
             ws_t.cell(row=r, column=2).border = THIN_BORDER
             ws_t.cell(row=r, column=2).fill = fill
 
-            note = lunch_group if act_name == "Obed" else ""
+            note = group_notes.get(act_name, "")
             ws_t.cell(row=r, column=3, value=note).font = FONT_NORMAL
             ws_t.cell(row=r, column=3).alignment = ALIGN_LEFT
             ws_t.cell(row=r, column=3).border = THIN_BORDER
@@ -374,13 +434,14 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
             ws_t.row_dimensions[r].height = ROW_HEIGHT_ACTIVITY
             r += 1
 
-        for label, time_val, fill in [
-            ("Ukončenie súťaže", competition_end, FILL_CEREMONY),
-            ("Presun", "13:45 – 14:00", FILL_REG),
-            ("Sprievodný program", "14:00 – 14:45", FILL_REG),
-            ("Presun", "14:45 – 15:00", FILL_REG),
-            ("Vyhlásenie výsledkov", "15:00 – 15:30", FILL_CEREMONY),
-        ]:
+        sheet_footer = [("Ukončenie súťaže", competition_end,
+                         PatternFill("solid", fgColor="D9D9D9"))]
+        for ev in post_events:
+            sheet_footer.append((
+                ev.name,
+                f"{min_to_time(ev.start_time)} – {min_to_time(ev.end_time)}",
+                category_fill[ev.category]))
+        for label, time_val, fill in sheet_footer:
             for ci in range(1, 5):
                 ws_t.cell(row=r, column=ci).border = THIN_BORDER
                 ws_t.cell(row=r, column=ci).fill = fill
@@ -396,7 +457,8 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
         ws_t.column_dimensions["C"].width = 24
         ws_t.column_dimensions["D"].width = 12
 
-        ws_t.sheet_properties.pageSetUpPr = openpyxl.worksheet.properties.PageSetupProperties(fitToPage=True)
+        ws_t.sheet_properties.pageSetUpPr = openpyxl.worksheet.properties.PageSetupProperties(
+            fitToPage=True)
         ws_t.page_setup.fitToWidth = 1
         ws_t.page_setup.fitToHeight = 1
         ws_t.page_setup.orientation = "portrait"

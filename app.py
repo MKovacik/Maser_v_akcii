@@ -1,7 +1,7 @@
 """Streamlit app for Masér v akcii schedule generation."""
 import streamlit as st
 from datetime import time
-from solver import SolverConfig, solve, min_to_time
+from solver import SolverConfig, SharedEvent, solve, min_to_time
 from export_excel import generate_excel
 import os
 import base64
@@ -11,13 +11,26 @@ st.set_page_config(page_title="Masér v akcii – Harmonogram", layout="wide", p
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGO_PATH = os.path.join(SCRIPT_DIR, "logo.png")
 
-CAT_COLORS = {
+BASE_CAT_COLORS = {
     "klas": {"bg": "#BDD7EE", "text": "#1a3a5c"},
     "free": {"bg": "#9BC2E6", "text": "#1a3a5c"},
     "sport": {"bg": "#C6EFCE", "text": "#1a4a2a"},
     "test": {"bg": "#FFE699", "text": "#5a4a00"},
-    "obed": {"bg": "#F8CBAD", "text": "#5a2a00"},
 }
+
+DEFAULT_EVENTS = [
+    {"name": "Registrácia", "start": time(8, 0), "dur": 30, "color": "#D9D9D9",
+     "groups": False, "num_groups": 1, "g_starts": [], "g_sizes": []},
+    {"name": "Otvorenie súťaže", "start": time(8, 30), "dur": 15, "color": "#D9D9D9",
+     "groups": False, "num_groups": 1, "g_starts": [], "g_sizes": []},
+    {"name": "Obed", "start": time(11, 0), "dur": 30, "color": "#F8CBAD",
+     "groups": True, "num_groups": 2,
+     "g_starts": [time(11, 0), time(12, 30)], "g_sizes": [0, 0]},
+    {"name": "Sprievodný program", "start": time(14, 0), "dur": 45, "color": "#D9D9D9",
+     "groups": False, "num_groups": 1, "g_starts": [], "g_sizes": []},
+    {"name": "Vyhlásenie výsledkov", "start": time(15, 0), "dur": 30, "color": "#D9D9D9",
+     "groups": False, "num_groups": 1, "g_starts": [], "g_sizes": []},
+]
 
 st.markdown("""
 <style>
@@ -47,159 +60,78 @@ st.markdown("""
         border-bottom: 3px solid #1F4E79;
         margin-bottom: 24px;
     }
-    .main-header img {
-        height: 60px;
-        width: auto;
-    }
-    .main-header h1 {
-        color: #1F4E79;
-        font-size: 2rem;
-        margin: 0;
-        font-weight: 700;
-    }
-    .main-header .subtitle {
-        color: #666;
-        font-size: 0.95rem;
-        margin-top: 2px;
-    }
+    .main-header img { height: 60px; width: auto; }
+    .main-header h1 { color: #1F4E79; font-size: 2rem; margin: 0; font-weight: 700; }
+    .main-header .subtitle { color: #666; font-size: 0.95rem; margin-top: 2px; }
 
     .schedule-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.9rem;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        width: 100%; border-collapse: collapse; font-size: 0.9rem;
+        border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
     .schedule-table thead th {
-        background: #1F4E79;
-        color: white;
-        padding: 10px 14px;
-        text-align: center;
-        font-weight: 600;
-        font-size: 0.85rem;
+        background: #1F4E79; color: white; padding: 10px 14px;
+        text-align: center; font-weight: 600; font-size: 0.85rem;
     }
     .schedule-table tbody td {
-        padding: 8px 12px;
-        text-align: center;
-        border-bottom: 1px solid #e8e8e8;
-        font-size: 0.85rem;
+        padding: 8px 12px; text-align: center;
+        border-bottom: 1px solid #e8e8e8; font-size: 0.85rem;
     }
 
     .timeline-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.75rem;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        width: 100%; border-collapse: collapse; font-size: 0.75rem;
+        border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
     .timeline-table thead th {
-        background: #1F4E79;
-        color: white;
-        padding: 6px 4px;
-        text-align: center;
-        font-weight: 600;
-        font-size: 0.75rem;
-        position: sticky;
-        top: 0;
-        z-index: 1;
+        background: #1F4E79; color: white; padding: 6px 4px;
+        text-align: center; font-weight: 600; font-size: 0.75rem;
+        position: sticky; top: 0; z-index: 1;
     }
     .timeline-table tbody td {
-        padding: 4px 2px;
-        text-align: center;
-        border: 1px solid #e0e0e0;
-        font-size: 0.7rem;
-        white-space: nowrap;
+        padding: 4px 2px; text-align: center; border: 1px solid #e0e0e0;
+        font-size: 0.7rem; white-space: nowrap;
     }
     .timeline-table tbody td.time-col {
-        font-weight: 600;
-        background: #f0f4f8;
-        padding: 4px 6px;
-        color: #333;
+        font-weight: 600; background: #f0f4f8; padding: 4px 6px; color: #333;
     }
     .timeline-wrap {
-        max-height: 600px;
-        overflow-y: auto;
-        border-radius: 8px;
-        border: 1px solid #e0e0e0;
+        max-height: 600px; overflow-y: auto; border-radius: 8px; border: 1px solid #e0e0e0;
     }
 
     .team-detail-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.9rem;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        width: 100%; border-collapse: collapse; font-size: 0.9rem;
+        border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
     .team-detail-table thead th {
-        background: #1F4E79;
-        color: white;
-        padding: 10px 14px;
-        text-align: left;
-        font-weight: 600;
+        background: #1F4E79; color: white; padding: 10px 14px;
+        text-align: left; font-weight: 600;
     }
-    .team-detail-table tbody td {
-        padding: 10px 14px;
-        border-bottom: 1px solid #e8e8e8;
-    }
+    .team-detail-table tbody td { padding: 10px 14px; border-bottom: 1px solid #e8e8e8; }
 
     .cat-badge {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 12px;
-        font-weight: 500;
-        font-size: 0.8rem;
+        display: inline-block; padding: 3px 10px; border-radius: 12px;
+        font-weight: 500; font-size: 0.8rem;
     }
-
     .stat-card {
-        background: white;
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        border-left: 4px solid #1F4E79;
+        background: white; border-radius: 12px; padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #1F4E79;
         text-align: center;
     }
-    .stat-card .value {
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: #1F4E79;
-    }
-    .stat-card .label {
-        font-size: 0.85rem;
-        color: #888;
-        margin-top: 4px;
-    }
+    .stat-card .value { font-size: 1.8rem; font-weight: 700; color: #1F4E79; }
+    .stat-card .label { font-size: 0.85rem; color: #888; margin-top: 4px; }
 
     .legend-item {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        margin-right: 16px;
-        font-size: 0.85rem;
+        display: inline-flex; align-items: center; gap: 6px;
+        margin-right: 16px; font-size: 0.85rem;
     }
-    .legend-dot {
-        width: 14px;
-        height: 14px;
-        border-radius: 4px;
-        display: inline-block;
-    }
+    .legend-dot { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
 
     div[data-testid="stTabs"] button[role="tab"] {
-        font-size: 1rem;
-        font-weight: 600;
-        padding: 12px 24px;
+        font-size: 1rem; font-weight: 600; padding: 12px 24px;
     }
-
     .success-banner {
         background: linear-gradient(135deg, #d4edda, #c3e6cb);
-        border: 1px solid #28a745;
-        border-radius: 10px;
-        padding: 16px 24px;
-        color: #155724;
-        font-weight: 500;
-        margin-bottom: 16px;
+        border: 1px solid #28a745; border-radius: 10px;
+        padding: 16px 24px; color: #155724; font-weight: 500; margin-bottom: 16px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -218,6 +150,25 @@ header_html += """
 """
 st.markdown(header_html, unsafe_allow_html=True)
 
+
+def time_to_min_ui(t):
+    return t.hour * 60 + t.minute
+
+
+def min_to_time_ui(m):
+    return time(m // 60, m % 60)
+
+
+def cat_badge(text, cat, cat_colors):
+    c = cat_colors.get(cat, {"bg": "#eee", "text": "#333"})
+    return f'<span class="cat-badge" style="background:{c["bg"]};color:{c["text"]}">{text}</span>'
+
+
+# ── Initialize shared events in session state ──
+if "shared_events" not in st.session_state:
+    st.session_state["shared_events"] = [dict(e) for e in DEFAULT_EVENTS]
+
+
 # ── Sidebar ──
 with st.sidebar:
     st.markdown("### Nastavenia")
@@ -233,17 +184,6 @@ with st.sidebar:
         end_t = st.time_input("Koniec", value=time(13, 45))
 
     st.markdown("---")
-    st.markdown("**Obed**")
-    col1, col2 = st.columns(2)
-    with col1:
-        lunch1_t = st.time_input("Skupina 1", value=time(11, 0))
-    with col2:
-        lunch2_t = st.time_input("Skupina 2", value=time(12, 30))
-    lunch_dur = st.number_input("Trvanie obeda (min)", min_value=15, max_value=60, value=30)
-    lunch_g1 = st.number_input("Veľkosť skupiny 1 (0 = auto)", min_value=0,
-                               max_value=num_teams, value=0)
-
-    st.markdown("---")
     st.markdown("**Trvanie aktivít (min)**")
     klasicka_dur = st.number_input("Klasická masáž", min_value=10, max_value=40, value=20)
     freestyle_dur = st.number_input("Freestyle masáž", min_value=10, max_value=40, value=20)
@@ -255,19 +195,94 @@ with st.sidebar:
     transfer = st.number_input("Presun medzi stanovišťami (min)", min_value=5, max_value=20, value=10)
 
     st.markdown("---")
+    st.markdown("**Spoločné udalosti**")
+
+    events = st.session_state["shared_events"]
+
+    to_delete = None
+    for i, ev in enumerate(events):
+        with st.expander(f"{ev['name']} ({ev['start'].strftime('%H:%M')})", expanded=False):
+            ev["name"] = st.text_input("Názov", value=ev["name"], key=f"ev_name_{i}")
+            c1, c2 = st.columns(2)
+            with c1:
+                ev["start"] = st.time_input("Začiatok", value=ev["start"], key=f"ev_start_{i}")
+            with c2:
+                ev["dur"] = st.number_input("Trvanie (min)", min_value=5, max_value=120,
+                                            value=ev["dur"], key=f"ev_dur_{i}")
+            ev["color"] = st.color_picker("Farba", value=ev["color"], key=f"ev_color_{i}")
+            ev["groups"] = st.checkbox("Rozdeliť do skupín", value=ev["groups"], key=f"ev_grp_{i}")
+
+            if ev["groups"]:
+                ev["num_groups"] = st.number_input(
+                    "Počet skupín", min_value=2, max_value=5,
+                    value=ev.get("num_groups", 2), key=f"ev_ng_{i}")
+                while len(ev["g_starts"]) < ev["num_groups"]:
+                    ev["g_starts"].append(ev["start"])
+                while len(ev["g_sizes"]) < ev["num_groups"]:
+                    ev["g_sizes"].append(0)
+                ev["g_starts"] = ev["g_starts"][:ev["num_groups"]]
+                ev["g_sizes"] = ev["g_sizes"][:ev["num_groups"]]
+
+                for g in range(ev["num_groups"]):
+                    gc1, gc2 = st.columns(2)
+                    with gc1:
+                        ev["g_starts"][g] = st.time_input(
+                            f"Sk.{g+1} začiatok", value=ev["g_starts"][g], key=f"ev_gs_{i}_{g}")
+                    with gc2:
+                        ev["g_sizes"][g] = st.number_input(
+                            f"Sk.{g+1} veľkosť (0=auto)", min_value=0, max_value=num_teams,
+                            value=ev["g_sizes"][g], key=f"ev_gsz_{i}_{g}")
+            else:
+                ev["num_groups"] = 1
+                ev["g_starts"] = []
+                ev["g_sizes"] = []
+
+            if st.button("Odstrániť", key=f"ev_del_{i}", type="secondary"):
+                to_delete = i
+
+    if to_delete is not None:
+        st.session_state["shared_events"].pop(to_delete)
+        st.rerun()
+
+    if st.button("+ Pridať udalosť", use_container_width=True):
+        st.session_state["shared_events"].append({
+            "name": "Nová udalosť", "start": time(12, 0), "dur": 30,
+            "color": "#D9D9D9", "groups": False, "num_groups": 1,
+            "g_starts": [], "g_sizes": [],
+        })
+        st.rerun()
+
+    st.markdown("---")
     generate = st.button("Generovať harmonogram", type="primary", use_container_width=True)
 
 
-def time_to_min_ui(t):
-    return t.hour * 60 + t.minute
+def build_shared_events():
+    result = []
+    for ev in st.session_state["shared_events"]:
+        group_starts = [time_to_min_ui(t) for t in ev["g_starts"]] if ev["groups"] else []
+        group_sizes = list(ev["g_sizes"]) if ev["groups"] else []
+        result.append(SharedEvent(
+            name=ev["name"],
+            start_time=time_to_min_ui(ev["start"]),
+            duration=ev["dur"],
+            color_bg=ev["color"],
+            color_text="#333333",
+            num_groups=ev["num_groups"] if ev["groups"] else 1,
+            group_starts=group_starts,
+            group_sizes=group_sizes,
+        ))
+    return result
 
 
-def cat_badge(text, cat):
-    c = CAT_COLORS.get(cat, {"bg": "#eee", "text": "#333"})
-    return f'<span class="cat-badge" style="background:{c["bg"]};color:{c["text"]}">{text}</span>'
+def build_cat_colors(shared_events):
+    colors = dict(BASE_CAT_COLORS)
+    for ev in shared_events:
+        colors[ev.category] = {"bg": ev.color_bg, "text": ev.color_text}
+    return colors
 
 
 if generate:
+    shared_events = build_shared_events()
     config = SolverConfig(
         num_teams=num_teams,
         start_time=time_to_min_ui(start_t),
@@ -281,11 +296,8 @@ if generate:
             ("Frisbee na cieľ", sport_dur_each),
         ],
         test_duration=test_dur,
-        lunch_duration=lunch_dur,
         transfer_time=transfer,
-        lunch_group1_start=time_to_min_ui(lunch1_t),
-        lunch_group2_start=time_to_min_ui(lunch2_t),
-        lunch_group1_size=lunch_g1,
+        shared_events=shared_events,
     )
 
     with st.spinner("Hľadám optimálny harmonogram..."):
@@ -303,6 +315,7 @@ if "schedule" in st.session_state:
     result = st.session_state["schedule"]
     config = st.session_state["config"]
     num_teams = config.num_teams
+    cat_colors = build_cat_colors(config.shared_events)
 
     st.markdown('<div class="success-banner">Harmonogram úspešne vygenerovaný!</div>',
                 unsafe_allow_html=True)
@@ -313,20 +326,18 @@ if "schedule" in st.session_state:
         logo_path=logo,
         competition_start=min_to_time(config.start_time),
         competition_end=min_to_time(config.end_time),
-        lunch_group1_size=config.group1_size,
+        shared_events=config.shared_events,
+        num_teams=config.num_teams,
     )
 
-    # Stats row
     total_activities = sum(len(v) for v in result.values())
     first_start = min(
         int(s[:2]) * 60 + int(s[3:])
-        for entries in result.values()
-        for _, s, _, _ in entries
+        for entries in result.values() for _, s, _, _ in entries
     )
     last_end = max(
         int(e[:2]) * 60 + int(e[3:])
-        for entries in result.values()
-        for _, _, e, _ in entries
+        for entries in result.values() for _, _, e, _ in entries
     )
 
     cols = st.columns(4)
@@ -338,37 +349,50 @@ if "schedule" in st.session_state:
     ]
     for col, (val, label) in zip(cols, stats):
         col.markdown(
-            f'<div class="stat-card"><div class="value">{val}</div><div class="label">{label}</div></div>',
-            unsafe_allow_html=True,
-        )
+            f'<div class="stat-card"><div class="value">{val}</div>'
+            f'<div class="label">{label}</div></div>',
+            unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     dl_col, _, _ = st.columns([1, 1, 3])
     with dl_col:
         st.download_button(
-            label="Stiahnuť Excel",
-            data=excel_bytes,
+            label="Stiahnuť Excel", data=excel_bytes,
             file_name="Maser_v_akcii_harmonogram.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            type="primary",
-            use_container_width=True,
-        )
+            type="primary", use_container_width=True)
 
-    # Legend
     legend_html = '<div style="margin: 8px 0 20px 0;">'
-    for cat, label in [("klas", "Klasická masáž"), ("free", "Freestyle masáž"),
-                       ("sport", "Športové"), ("test", "Test"), ("obed", "Obed")]:
-        c = CAT_COLORS[cat]
-        legend_html += f'<span class="legend-item"><span class="legend-dot" style="background:{c["bg"]}"></span>{label}</span>'
+    for cat_key, label in [("klas", "Klasická masáž"), ("free", "Freestyle masáž"),
+                           ("sport", "Športové"), ("test", "Test")]:
+        c = cat_colors[cat_key]
+        legend_html += (f'<span class="legend-item">'
+                        f'<span class="legend-dot" style="background:{c["bg"]}"></span>'
+                        f'{label}</span>')
+    for ev in config.shared_events:
+        c = cat_colors.get(ev.category, {"bg": ev.color_bg})
+        legend_html += (f'<span class="legend-item">'
+                        f'<span class="legend-dot" style="background:{c["bg"]}"></span>'
+                        f'{ev.name}</span>')
     legend_html += "</div>"
     st.markdown(legend_html, unsafe_allow_html=True)
+
+    # Shared events during competition (for overview table columns)
+    comp_start = config.start_time
+    comp_end = config.end_time
+    during_events = [ev for ev in config.shared_events
+                     if ev.overlaps_window(comp_start, comp_end)]
 
     tab1, tab2, tab3 = st.tabs(["Prehľad", "Časová os", "Po tímoch"])
 
     with tab1:
+        headers = ["Tím", "Klasická masáž", "Freestyle masáž", "Športové", "Test"]
+        for ev in during_events:
+            headers.append(ev.name)
+
         html = '<table class="schedule-table"><thead><tr>'
-        for h in ["Tím", "Klasická masáž", "Freestyle masáž", "Športové", "Test", "Obed"]:
+        for h in headers:
             html += f"<th>{h}</th>"
         html += "</tr></thead><tbody>"
 
@@ -377,7 +401,9 @@ if "schedule" in st.session_state:
             html += f'<td style="font-weight:600;background:#f0f4f8;color:#1F4E79">Team {t_id}</td>'
 
             sport_entries = [(s, e) for name, s, e, c in result[t_id] if c == "sport"]
-            cells = {"klas": "", "free": "", "sport": "", "test": "", "obed": ""}
+            cells = {"klas": "", "free": "", "sport": "", "test": ""}
+            for ev in during_events:
+                cells[ev.category] = ""
 
             if sport_entries:
                 cells["sport"] = f"{sport_entries[0][0]} – {sport_entries[-1][1]}"
@@ -389,24 +415,34 @@ if "schedule" in st.session_state:
                     cells["free"] = f"{s} – {e}"
                 elif name == "Test":
                     cells["test"] = f"{s} – {e}"
-                elif name == "Obed":
-                    cells["obed"] = f"{s} – {e}"
+                else:
+                    for ev in during_events:
+                        if name == ev.name:
+                            cells[ev.category] = f"{s} – {e}"
 
-            for cat in ["klas", "free", "sport", "test", "obed"]:
-                if cells[cat]:
-                    c = CAT_COLORS[cat]
-                    html += f'<td style="background:{c["bg"]};color:{c["text"]};font-weight:500;border-radius:4px">{cells[cat]}</td>'
+            col_cats = ["klas", "free", "sport", "test"] + [ev.category for ev in during_events]
+            for cat_key in col_cats:
+                if cells.get(cat_key):
+                    c = cat_colors.get(cat_key, {"bg": "#eee", "text": "#333"})
+                    html += (f'<td style="background:{c["bg"]};color:{c["text"]};'
+                             f'font-weight:500;border-radius:4px">{cells[cat_key]}</td>')
                 else:
                     html += "<td>–</td>"
-
             html += "</tr>"
 
         html += "</tbody></table>"
         st.markdown(html, unsafe_allow_html=True)
 
     with tab2:
-        start_min = config.start_time
-        end_min = config.end_time
+        all_starts = [comp_start, comp_end]
+        for ev in config.shared_events:
+            if ev.num_groups > 1:
+                all_starts.extend(ev.group_starts)
+                all_starts.extend([gs + ev.duration for gs in ev.group_starts])
+            else:
+                all_starts.extend([ev.start_time, ev.end_time])
+        tl_start = min(all_starts)
+        tl_end = max(all_starts)
 
         tl_data = {}
         for t_id in sorted(result.keys()):
@@ -416,7 +452,7 @@ if "schedule" in st.session_state:
                 em = int(e[:2]) * 60 + int(e[3:])
                 short = {"Klasická masáž": "Klas.", "Freestyle masáž": "Free.",
                          "Hod medicinbalom": "Hod", "Frisbee na cieľ": "Fris.",
-                         "Beh na 50m": "Beh", "Ľah-sed": "Ľah-s."}.get(name, name)
+                         "Beh na 50m": "Beh", "Ľah-sed": "Ľah-s."}.get(name, name[:5])
                 for m in range(sm, em):
                     timeline[m] = (short, cat)
             tl_data[t_id] = timeline
@@ -428,19 +464,20 @@ if "schedule" in st.session_state:
             html += f'<th>T{t_id}</th>'
         html += '</tr></thead><tbody>'
 
-        for slot in range(start_min, end_min, 5):
+        for slot in range(tl_start, tl_end, 5):
             html += '<tr>'
             html += f'<td class="time-col">{min_to_time(slot)}</td>'
             for t_id in sorted_teams:
                 tl = tl_data[t_id]
-                act, cat = "", None
-                for m in range(slot, min(slot + 5, end_min)):
+                act, cat_key = "", None
+                for m in range(slot, min(slot + 5, tl_end)):
                     if m in tl:
-                        act, cat = tl[m]
+                        act, cat_key = tl[m]
                         break
-                if act and cat:
-                    c = CAT_COLORS.get(cat, {"bg": "#eee", "text": "#333"})
-                    html += f'<td style="background:{c["bg"]};color:{c["text"]};font-weight:500">{act}</td>'
+                if act and cat_key:
+                    c = cat_colors.get(cat_key, {"bg": "#eee", "text": "#333"})
+                    html += (f'<td style="background:{c["bg"]};color:{c["text"]};'
+                             f'font-weight:500">{act}</td>')
                 else:
                     html += '<td></td>'
             html += '</tr>'
@@ -451,10 +488,10 @@ if "schedule" in st.session_state:
     with tab3:
         team_cols = st.columns([1, 4])
         with team_cols[0]:
-            selected = st.selectbox("Vyber tím", [f"Team {t}" for t in sorted(result.keys())],
+            selected = st.selectbox("Vyber tím",
+                                    [f"Team {t}" for t in sorted(result.keys())],
                                     label_visibility="collapsed")
         t_id = int(selected.split(" ")[1])
-
         entries = result[t_id]
 
         html = '<table class="team-detail-table"><thead><tr>'
@@ -464,9 +501,9 @@ if "schedule" in st.session_state:
 
         for name, s, e, cat in entries:
             dur = int(e[:2]) * 60 + int(e[3:]) - int(s[:2]) * 60 - int(s[3:])
-            c = CAT_COLORS.get(cat, {"bg": "#eee", "text": "#333"})
+            c = cat_colors.get(cat, {"bg": "#eee", "text": "#333"})
             html += f'<tr style="background:{c["bg"]}20">'
-            html += f'<td>{cat_badge(name, cat)}</td>'
+            html += f'<td>{cat_badge(name, cat, cat_colors)}</td>'
             html += f'<td style="text-align:center;font-weight:500">{s} – {e}</td>'
             html += f'<td style="text-align:center">{dur} min</td>'
             html += "</tr>"

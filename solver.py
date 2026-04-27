@@ -1,7 +1,55 @@
 """CP-SAT based scheduler for Masér v akcii competition."""
+import re
 from dataclasses import dataclass, field
 from math import ceil
 from ortools.sat.python import cp_model
+
+
+@dataclass
+class SharedEvent:
+    name: str
+    start_time: int
+    duration: int
+    color_bg: str = "#D9D9D9"
+    color_text: str = "#333333"
+    num_groups: int = 1
+    group_starts: list[int] = field(default_factory=list)
+    group_sizes: list[int] = field(default_factory=list)
+
+    @property
+    def category(self) -> str:
+        slug = re.sub(r'[^a-z0-9]', '_', self.name.lower().strip())
+        return f"shared_{slug}"
+
+    @property
+    def end_time(self) -> int:
+        return self.start_time + self.duration
+
+    def effective_group_sizes(self, num_teams: int) -> list[int]:
+        if self.group_sizes and sum(self.group_sizes) > 0:
+            return list(self.group_sizes)
+        base = num_teams // self.num_groups
+        remainder = num_teams % self.num_groups
+        return [base + (1 if i < remainder else 0) for i in range(self.num_groups)]
+
+    def get_start_for_team(self, team_idx: int, num_teams: int) -> int:
+        if self.num_groups <= 1:
+            return self.start_time
+        sizes = self.effective_group_sizes(num_teams)
+        cumulative = 0
+        for g, size in enumerate(sizes):
+            cumulative += size
+            if team_idx < cumulative:
+                return self.group_starts[g]
+        return self.group_starts[-1]
+
+    def overlaps_window(self, window_start: int, window_end: int) -> bool:
+        starts = self.group_starts if self.num_groups > 1 else [self.start_time]
+        for s in starts:
+            e = s + self.duration
+            if s < window_end and e > window_start:
+                return True
+        return False
 
 
 @dataclass
@@ -18,11 +66,14 @@ class SolverConfig:
         ("Frisbee na cieľ", 5),
     ])
     test_duration: int = 15
-    lunch_duration: int = 30
     transfer_time: int = 10
-    lunch_group1_start: int = 660   # 11:00
-    lunch_group2_start: int = 750   # 12:30
-    lunch_group1_size: int = 0      # 0 = auto (ceil(N/2))
+    shared_events: list[SharedEvent] = field(default_factory=lambda: [
+        SharedEvent(
+            name="Obed", start_time=660, duration=30,
+            color_bg="#F8CBAD", color_text="#5a2a00",
+            num_groups=2, group_starts=[660, 750],
+        ),
+    ])
 
     @property
     def masaze_duration(self):
@@ -31,12 +82,6 @@ class SolverConfig:
     @property
     def sport_duration(self):
         return sum(d for _, d in self.sport_disciplines)
-
-    @property
-    def group1_size(self):
-        if self.lunch_group1_size > 0:
-            return self.lunch_group1_size
-        return ceil(self.num_teams / 2)
 
 
 def min_to_time(m: int) -> str:
@@ -53,24 +98,13 @@ def solve(config: SolverConfig):
     D_free = config.freestyle_duration
     D_sport = config.sport_duration
     D_test = config.test_duration
-    D_lunch = config.lunch_duration
     TRANSFER = config.transfer_time
-    G1_SIZE = config.group1_size
 
     model = cp_model.CpModel()
 
-    masaze_start = []
-    sport_start = []
-    test_start = []
-
-    masaze_end = []
-    sport_end = []
-    test_end = []
-
-    klas_itv = []
-    free_itv = []
-    sport_itv = []
-    test_itv = []
+    masaze_start, sport_start, test_start = [], [], []
+    masaze_end, sport_end, test_end = [], [], []
+    klas_itv, free_itv, sport_itv, test_itv = [], [], [], []
 
     for t in range(N):
         ms = model.new_int_var(H, H_end - D_mas, f"masaze_start_{t}")
@@ -93,65 +127,48 @@ def solve(config: SolverConfig):
         model.add(te == ts + D_test)
         test_end.append(te)
 
-        # Interval vars for NoOverlap
-        ki = model.new_fixed_size_interval_var(ms, D_klas, f"klas_itv_{t}")
-        klas_itv.append(ki)
+        klas_itv.append(model.new_fixed_size_interval_var(ms, D_klas, f"klas_itv_{t}"))
 
         fs = model.new_int_var(H, H_end, f"free_start_{t}")
         model.add(fs == ms + D_klas)
-        fi = model.new_fixed_size_interval_var(fs, D_free, f"free_itv_{t}")
-        free_itv.append(fi)
+        free_itv.append(model.new_fixed_size_interval_var(fs, D_free, f"free_itv_{t}"))
 
-        si = model.new_fixed_size_interval_var(ss, D_sport, f"sport_itv_{t}")
-        sport_itv.append(si)
+        sport_itv.append(model.new_fixed_size_interval_var(ss, D_sport, f"sport_itv_{t}"))
+        test_itv.append(model.new_fixed_size_interval_var(ts, D_test, f"test_itv_{t}"))
 
-        ti = model.new_fixed_size_interval_var(ts, D_test, f"test_itv_{t}")
-        test_itv.append(ti)
-
-    # Resource constraints: no overlap on each station
     model.add_no_overlap(klas_itv)
     model.add_no_overlap(free_itv)
     model.add_no_overlap(sport_itv)
     model.add_no_overlap(test_itv)
 
-    # Per-team constraints
     for t in range(N):
-        # Pairwise ordering with transfer time between competition locations
-        # Masáže vs Sport
         b_ms = model.new_bool_var(f"mas_before_sport_{t}")
         model.add(masaze_end[t] + TRANSFER <= sport_start[t]).only_enforce_if(b_ms)
         model.add(sport_end[t] + TRANSFER <= masaze_start[t]).only_enforce_if(~b_ms)
 
-        # Masáže vs Test
         b_mt = model.new_bool_var(f"mas_before_test_{t}")
         model.add(masaze_end[t] + TRANSFER <= test_start[t]).only_enforce_if(b_mt)
         model.add(test_end[t] + TRANSFER <= masaze_start[t]).only_enforce_if(~b_mt)
 
-        # Sport vs Test
         b_st = model.new_bool_var(f"sport_before_test_{t}")
         model.add(sport_end[t] + TRANSFER <= test_start[t]).only_enforce_if(b_st)
         model.add(test_end[t] + TRANSFER <= sport_start[t]).only_enforce_if(~b_st)
 
-        # Lunch non-overlap with competition activities
-        lunch_s = config.lunch_group1_start if t < G1_SIZE else config.lunch_group2_start
-        lunch_e = lunch_s + D_lunch
+        for ev_idx, ev in enumerate(config.shared_events):
+            if not ev.overlaps_window(H, H_end):
+                continue
+            ev_start = ev.get_start_for_team(t, N)
+            ev_end = ev_start + ev.duration
 
-        # Masáže must not overlap with lunch
-        b_ml = model.new_bool_var(f"mas_before_lunch_{t}")
-        model.add(masaze_end[t] <= lunch_s).only_enforce_if(b_ml)
-        model.add(masaze_start[t] >= lunch_e).only_enforce_if(~b_ml)
+            for label, a_start, a_end in [
+                ("mas", masaze_start[t], masaze_end[t]),
+                ("sport", sport_start[t], sport_end[t]),
+                ("test", test_start[t], test_end[t]),
+            ]:
+                b = model.new_bool_var(f"{label}_vs_ev{ev_idx}_{t}")
+                model.add(a_end <= ev_start).only_enforce_if(b)
+                model.add(a_start >= ev_end).only_enforce_if(~b)
 
-        # Sport must not overlap with lunch
-        b_sl = model.new_bool_var(f"sport_before_lunch_{t}")
-        model.add(sport_end[t] <= lunch_s).only_enforce_if(b_sl)
-        model.add(sport_start[t] >= lunch_e).only_enforce_if(~b_sl)
-
-        # Test must not overlap with lunch
-        b_tl = model.new_bool_var(f"test_before_lunch_{t}")
-        model.add(test_end[t] <= lunch_s).only_enforce_if(b_tl)
-        model.add(test_start[t] >= lunch_e).only_enforce_if(~b_tl)
-
-    # Objective: minimize makespan
     makespan = model.new_int_var(H, H_end, "makespan")
     for t in range(N):
         model.add(makespan >= masaze_end[t])
@@ -159,7 +176,6 @@ def solve(config: SolverConfig):
         model.add(makespan >= test_end[t])
     model.minimize(makespan)
 
-    # Solve
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = 30
     status = solver.solve(model)
@@ -167,7 +183,6 @@ def solve(config: SolverConfig):
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return None
 
-    # Extract solution
     teams = {}
     for t in range(N):
         entries = []
@@ -185,8 +200,10 @@ def solve(config: SolverConfig):
         ts = solver.value(test_start[t])
         entries.append(("Test", min_to_time(ts), min_to_time(ts + D_test), "test"))
 
-        lunch_s = config.lunch_group1_start if t < G1_SIZE else config.lunch_group2_start
-        entries.append(("Obed", min_to_time(lunch_s), min_to_time(lunch_s + D_lunch), "obed"))
+        for ev in config.shared_events:
+            ev_start = ev.get_start_for_team(t, N)
+            entries.append((ev.name, min_to_time(ev_start),
+                            min_to_time(ev_start + ev.duration), ev.category))
 
         entries.sort(key=lambda x: x[1])
         teams[t + 1] = entries
