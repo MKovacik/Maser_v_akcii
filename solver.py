@@ -1,8 +1,6 @@
 """CP-SAT based scheduler for Masér v akcii competition."""
 import re
 from dataclasses import dataclass, field
-from math import ceil
-from ortools.sat.python import cp_model
 
 
 @dataclass
@@ -132,6 +130,8 @@ def min_to_time(m: int) -> str:
 
 def solve(config: SolverConfig):
     """Solve the scheduling problem. Returns teams dict (1-indexed) or None if infeasible."""
+    from ortools.sat.python import cp_model
+
     N = config.num_teams
     H = config.start_time
     H_end = config.end_time
