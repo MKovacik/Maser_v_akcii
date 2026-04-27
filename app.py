@@ -18,6 +18,21 @@ BASE_CAT_COLORS = {
     "test": {"bg": "#FFE699", "text": "#5a4a00"},
 }
 
+COLOR_PALETTE = [
+    ("#D9D9D9", "Sivá"),
+    ("#F8CBAD", "Broskyňová"),
+    ("#BDD7EE", "Svetlo modrá"),
+    ("#9BC2E6", "Modrá"),
+    ("#C6EFCE", "Svetlo zelená"),
+    ("#FFE699", "Svetlo žltá"),
+    ("#F4B183", "Oranžová"),
+    ("#D5A6BD", "Ružová"),
+    ("#B4C7E7", "Levanduľová"),
+    ("#A9D18E", "Zelená"),
+]
+COLOR_HEX_TO_NAME = {h: n for h, n in COLOR_PALETTE}
+COLOR_NAME_TO_HEX = {n: h for h, n in COLOR_PALETTE}
+
 DEFAULT_EVENTS = [
     {"name": "Registrácia", "start": time(8, 0), "dur": 30, "color": "#D9D9D9",
      "groups": False, "num_groups": 1, "g_starts": [], "g_sizes": []},
@@ -168,6 +183,34 @@ def cat_badge(text, cat, cat_colors):
     return f'<span class="cat-badge" style="background:{c["bg"]};color:{c["text"]}">{text}</span>'
 
 
+def color_swatch_picker(current_hex, key_prefix):
+    names = [n for _, n in COLOR_PALETTE]
+    norm = current_hex.upper()
+    lookup = {h.upper(): n for h, n in COLOR_PALETTE}
+    current_name = lookup.get(norm)
+    use_custom = current_name is None
+    idx = names.index(current_name) if current_name else 0
+
+    swatches_html = '<div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap;">'
+    for hex_val, name in COLOR_PALETTE:
+        border = "2px solid #1F4E79" if hex_val.upper() == norm else "1px solid #aaa"
+        swatches_html += (
+            f'<div title="{name}" style="width:22px;height:22px;border-radius:4px;'
+            f'background:{hex_val};border:{border};"></div>')
+    swatches_html += '</div>'
+    st.markdown(swatches_html, unsafe_allow_html=True)
+
+    choice = st.selectbox(
+        "Farba", options=names + ["Vlastná..."],
+        index=len(names) if use_custom else idx,
+        key=f"{key_prefix}_sel",
+        label_visibility="collapsed")
+
+    if choice == "Vlastná...":
+        return st.color_picker("Vlastná farba", value=current_hex, key=f"{key_prefix}_cp")
+    return COLOR_NAME_TO_HEX[choice]
+
+
 # ── Initialize session state ──
 if "shared_events" not in st.session_state:
     st.session_state["shared_events"] = [dict(e) for e in DEFAULT_EVENTS]
@@ -258,7 +301,7 @@ with st.sidebar:
             with c2:
                 ev["dur"] = st.number_input("Trvanie (min)", min_value=5, max_value=120,
                                             value=ev["dur"], key=f"ev_dur_{i}")
-            ev["color"] = st.color_picker("Farba", value=ev["color"], key=f"ev_color_{i}")
+            ev["color"] = color_swatch_picker(ev["color"], key_prefix=f"ev_color_{i}")
             ev["groups"] = st.checkbox("Rozdeliť do skupín", value=ev["groups"], key=f"ev_grp_{i}")
 
             if ev["groups"]:
