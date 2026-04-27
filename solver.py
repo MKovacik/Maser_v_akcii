@@ -69,8 +69,8 @@ class SolverConfig:
     start_time: int = 525       # 08:45
     end_time: int = 825         # 13:45
     masaze_activities: list[Activity] = field(default_factory=lambda: [
-        Activity("Klasická masáž (Penzión Caritas)", 20, "Klas.", "klas"),
-        Activity("Freestyle masáž (Penzión Caritas)", 20, "Free.", "free"),
+        Activity("Klasická masáž (Penzión Caritas)", 25, "Klas.", "klas"),
+        Activity("Freestyle masáž (Penzión Caritas)", 25, "Free.", "free"),
     ])
     sport_activities: list[Activity] = field(default_factory=lambda: [
         Activity("Hod medicinbalom", 5, "Hod", "sport"),

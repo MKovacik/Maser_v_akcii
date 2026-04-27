@@ -171,8 +171,8 @@ if "shared_events" not in st.session_state:
     st.session_state["shared_events"] = [dict(e) for e in DEFAULT_EVENTS]
 if "masaze_activities" not in st.session_state:
     st.session_state["masaze_activities"] = [
-        {"name": "Klasická masáž (Penzión Caritas)", "duration": 20, "abbr": "Klas."},
-        {"name": "Freestyle masáž (Penzión Caritas)", "duration": 20, "abbr": "Free."},
+        {"name": "Klasická masáž (Penzión Caritas)", "duration": 25, "abbr": "Klas."},
+        {"name": "Freestyle masáž (Penzión Caritas)", "duration": 25, "abbr": "Free."},
     ]
 if "sport_activities" not in st.session_state:
     st.session_state["sport_activities"] = [
