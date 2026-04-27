@@ -85,12 +85,28 @@ class SolverConfig:
     transfer_time: int = 10
     shared_events: list[SharedEvent] = field(default_factory=lambda: [
         SharedEvent(
+            name="Registrácia", start_time=480, duration=30,
+            color_bg="#D9D9D9", color_text="#333333",
+        ),
+        SharedEvent(
+            name="Otvorenie súťaže", start_time=510, duration=15,
+            color_bg="#D9D9D9", color_text="#333333",
+        ),
+        SharedEvent(
             name="Obed", start_time=660, duration=30,
             color_bg="#F8CBAD", color_text="#5a2a00",
             num_groups=2, group_starts=[660, 750],
         ),
         SharedEvent(
             name="Ukončenie súťaže", start_time=825, duration=5,
+            color_bg="#D9D9D9", color_text="#333333",
+        ),
+        SharedEvent(
+            name="Sprievodný program", start_time=840, duration=45,
+            color_bg="#D9D9D9", color_text="#333333",
+        ),
+        SharedEvent(
+            name="Vyhlásenie výsledkov", start_time=900, duration=30,
             color_bg="#D9D9D9", color_text="#333333",
         ),
     ])

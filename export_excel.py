@@ -126,12 +126,10 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
     ws["A3"].font = Font(name="Calibri", size=13, bold=True)
     ws["A3"].alignment = ALIGN_LEFT
 
+    all_display_events = sorted(pre_events + during_events + post_events,
+                                key=lambda e: e.start_time)
     general_events = []
-    for ev in pre_events:
-        general_events.append((
-            f"{min_to_time(ev.start_time)} – {min_to_time(ev.end_time)}", ev.name))
-    general_events.append((competition_start, "Začiatok súťaže"))
-    for ev in during_events:
+    for ev in all_display_events:
         if ev.num_groups > 1:
             sizes = ev.effective_group_sizes(num_teams)
             cumul = 0
@@ -146,10 +144,6 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
         else:
             general_events.append((
                 f"{min_to_time(ev.start_time)} – {min_to_time(ev.end_time)}", ev.name))
-    general_events.append((competition_end, "Ukončenie súťaže"))
-    for ev in post_events:
-        general_events.append((
-            f"{min_to_time(ev.start_time)} – {min_to_time(ev.end_time)}", ev.name))
 
     row = 4
     for time_str, desc in general_events:
