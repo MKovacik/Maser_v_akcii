@@ -350,23 +350,7 @@ def solve(config: SolverConfig):
         model.add(makespan >= masaze_end[t])
         model.add(makespan >= sport_end[t])
         model.add(makespan >= test_end[t])
-
-    # Minimize gaps: for each pair of activities, minimize distance between them
-    total_gaps = 0
-    for t in range(N):
-        for a_end, b_start in [
-            (masaze_end[t], sport_start[t]),
-            (masaze_end[t], test_start[t]),
-            (sport_end[t], masaze_start[t]),
-            (sport_end[t], test_start[t]),
-            (test_end[t], masaze_start[t]),
-            (test_end[t], sport_start[t]),
-        ]:
-            diff = model.new_int_var(0, H_end - H, f"gap_{t}_{id(a_end)}")
-            model.add(diff >= b_start - a_end)
-            total_gaps += diff
-
-    model.minimize(total_gaps)
+    model.minimize(makespan)
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = 30
