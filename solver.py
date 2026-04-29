@@ -233,20 +233,20 @@ def solve(config: SolverConfig):
     for ev_idx, ev in enumerate(config.shared_events):
         if not ev.overlaps_window(H, H_end):
             continue
+        # Floating events are not constrained by solver — filled in post-processing
+        if ev.floating:
+            continue
 
         if ev.num_groups > 1:
             sizes = ev.effective_group_sizes(N)
-            # Bool vars: group_bools[t][g] = True iff team t is in group g
             group_bools = []
             for t in range(N):
                 t_bools = []
                 for g in range(ev.num_groups):
                     t_bools.append(model.new_bool_var(f"ev{ev_idx}_t{t}_g{g}"))
                 group_bools.append(t_bools)
-                # Each team in exactly one group
                 model.add_exactly_one(t_bools)
 
-                # Link start time to group assignment
                 ev_s = model.new_int_var(min(ev.group_starts), max(ev.group_starts),
                                          f"ev{ev_idx}_start_{t}")
                 for g in range(ev.num_groups):
@@ -254,7 +254,6 @@ def solve(config: SolverConfig):
                 ev_start_vars[(ev_idx, t)] = ev_s
                 ev_group_vars[(ev_idx, t)] = t_bools
 
-            # Enforce group sizes
             for g in range(ev.num_groups):
                 model.add(sum(group_bools[t][g] for t in range(N)) == sizes[g])
         else:
@@ -272,6 +271,10 @@ def solve(config: SolverConfig):
             ev_s = ev_start_vars[(ev_idx, t)]
             # For floating events, only block min_duration (teams can leave early)
             ev_dur = ev.min_duration if ev.floating else ev.duration
+
+            # Floating events have no solver constraints — they fill gaps in output
+            if ev.floating:
+                continue
 
             if isinstance(ev_s, int):
                 if ev_s >= H_end:
@@ -396,6 +399,26 @@ def solve(config: SolverConfig):
                             min_to_time(ts + a.duration), a.category))
 
         for ev_idx, ev in enumerate(config.shared_events):
+            if ev.floating:
+                # Find earliest activity start for this team
+                first_act = min(solver.value(masaze_start[t]),
+                                solver.value(sport_start[t]),
+                                solver.value(test_start[t]))
+                # Pick the latest group_start that is <= first_act
+                starts = sorted(ev.group_starts) if ev.group_starts else [ev.start_time]
+                es = starts[0]
+                for gs in starts:
+                    if gs <= first_act:
+                        es = gs
+                    else:
+                        break
+                # End = first activity start, capped at max_duration
+                ee = min(first_act, es + ev.max_duration)
+                # Only include if duration >= min_duration
+                if ee - es >= ev.min_duration:
+                    entries.append((ev.name, min_to_time(es), min_to_time(ee), ev.category))
+                continue
+
             if (ev_idx, t) in ev_start_vars:
                 ev_s = ev_start_vars[(ev_idx, t)]
                 if isinstance(ev_s, int):
@@ -404,22 +427,7 @@ def solve(config: SolverConfig):
                     es = solver.value(ev_s)
             else:
                 es = ev.get_start_for_team(t, N)
-
-            if ev.floating:
-                # End = start of first activity after this event (capped at max_duration)
-                first_after = None
-                activity_starts = [solver.value(masaze_start[t]),
-                                   solver.value(sport_start[t]),
-                                   solver.value(test_start[t])]
-                for a_s in activity_starts:
-                    if a_s >= es + ev.min_duration:
-                        if first_after is None or a_s < first_after:
-                            first_after = a_s
-                ee = min(first_after or es + ev.max_duration,
-                         es + ev.max_duration)
-            else:
-                ee = es + ev.duration
-
+            ee = es + ev.duration
             entries.append((ev.name, min_to_time(es), min_to_time(ee), ev.category))
 
         entries.sort(key=lambda x: x[1])
