@@ -93,6 +93,11 @@ class SolverConfig:
             color_bg="#D9D9D9", color_text="#333333",
         ),
         SharedEvent(
+            name="Sprievodný program počas súťaže", start_time=525, duration=90,
+            color_bg="#D9D9D9", color_text="#333333",
+            num_groups=4, group_starts=[525, 615, 735, 825],
+        ),
+        SharedEvent(
             name="Obed", start_time=660, duration=30,
             color_bg="#F8CBAD", color_text="#5a2a00",
             num_groups=2, group_starts=[660, 750],
@@ -102,7 +107,7 @@ class SolverConfig:
             color_bg="#D9D9D9", color_text="#333333",
         ),
         SharedEvent(
-            name="Sprievodný program", start_time=840, duration=45,
+            name="Sprievodný program po skončení súťaže", start_time=840, duration=45,
             color_bg="#D9D9D9", color_text="#333333",
         ),
         SharedEvent(
