@@ -301,6 +301,17 @@ with st.sidebar:
                 ev["dur"] = st.number_input("Trvanie (min)", min_value=5, max_value=120,
                                             value=ev["dur"], key=f"ev_dur_{i}")
             ev["color"] = color_swatch_picker(ev["color"], key_prefix=f"ev_color_{i}")
+            ev["floating"] = st.checkbox("Plávajúce trvanie", value=ev.get("floating", False), key=f"ev_float_{i}")
+            if ev["floating"]:
+                fc1, fc2 = st.columns(2)
+                with fc1:
+                    ev["min_duration"] = st.number_input(
+                        "Min. trvanie (min)", min_value=5, max_value=120,
+                        value=ev.get("min_duration", 30), key=f"ev_mindur_{i}")
+                with fc2:
+                    ev["max_duration"] = st.number_input(
+                        "Max. trvanie (min)", min_value=5, max_value=180,
+                        value=ev.get("max_duration", 90), key=f"ev_maxdur_{i}")
             ev["groups"] = st.checkbox("Rozdeliť do skupín", value=ev["groups"], key=f"ev_grp_{i}")
 
             if ev["groups"]:
