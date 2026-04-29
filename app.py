@@ -522,26 +522,19 @@ if "schedule" in st.session_state:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    html_str = generate_html(result, config, logo_path=logo)
-
-    dl1, dl2, dl3, _ = st.columns([1, 1, 1, 2])
+    dl1, dl2, _ = st.columns([1, 1, 3])
     with dl1:
         st.download_button(
             label="Stiahnuť Excel", data=excel_bytes,
             file_name="Maser_v_akcii_harmonogram.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="primary", use_container_width=True)
-    with dl2:
-        st.download_button(
-            label="Stiahnuť HTML", data=html_str,
-            file_name="index.html",
-            mime="text/html",
-            use_container_width=True)
     is_local = os.path.isdir(os.path.join(SCRIPT_DIR, ".git"))
     if is_local:
-        with dl3:
+        with dl2:
             if st.button("Publikovať na GitHub Pages", use_container_width=True):
                 import subprocess
+                html_str = generate_html(result, config, logo_path=logo)
                 docs_dir = os.path.join(SCRIPT_DIR, "docs")
                 os.makedirs(docs_dir, exist_ok=True)
                 with open(os.path.join(docs_dir, "index.html"), "w", encoding="utf-8") as f:
@@ -583,9 +576,9 @@ if "schedule" in st.session_state:
     during_events = [ev for ev in config.shared_events
                      if ev.overlaps_window(comp_start, comp_end)]
 
-    tab1, tab2, tab3 = st.tabs(["Prehľad", "Časová os", "Po tímoch"])
+    tab1, tab2, tab3 = st.tabs(["Časová os", "Prehľad", "Po tímoch"])
 
-    with tab1:
+    with tab2:
         mas_cats = [a.category for a in config.masaze_activities]
         test_cat = config.test_activities[0].category
         mas_names = {a.name for a in config.masaze_activities}
@@ -638,7 +631,7 @@ if "schedule" in st.session_state:
         html += "</tbody></table>"
         st.markdown(html, unsafe_allow_html=True)
 
-    with tab2:
+    with tab1:
         all_starts = [comp_start, comp_end]
         for ev in config.shared_events:
             if ev.num_groups > 1:
