@@ -385,7 +385,8 @@ def solve(config: SolverConfig):
     optimal_makespan = solver.value(makespan)
 
     # Pass 2: fix makespan, maximize sprievodný program time
-    # Solver assigns each team to a floating group and pushes first activity later
+    # Sprievodný is a full activity with no-overlap constraints — solver can
+    # rearrange activities to create space for it anywhere in the schedule.
     model2, variables2 = _build_model(config, cp_model)
     if model2 is None:
         return None
@@ -405,40 +406,72 @@ def solve(config: SolverConfig):
         model2.add(sport_end[t] <= optimal_makespan)
         model2.add(test_end[t] <= optimal_makespan)
 
-    # For each floating event, let solver assign teams to groups freely
-    # and maximize (first_activity - group_start) capped at max_duration
-    float_group_bools = {}  # (ev, t) -> list of bool vars
-    float_group_start_vars = {}  # (ev, t) -> int var for assigned group_start
+    float_group_bools = {}
+    float_group_start_vars = {}
+    float_dur_vars = {}
 
     total_spriev = 0
     for ev in floating_events:
         starts = sorted(ev.group_starts) if ev.group_starts else [ev.start_time]
         num_g = len(starts)
+        sizes = ev.effective_group_sizes(N)
 
+        all_g_bools = []
         for t in range(N):
-            # Bool var per group
             g_bools = [model2.new_bool_var(f"float_{ev.name}_{t}_g{g}") for g in range(num_g)]
             model2.add_exactly_one(g_bools)
             float_group_bools[(id(ev), t)] = g_bools
+            all_g_bools.append(g_bools)
 
-            # Group start var
+            # Group start variable
             gs_var = model2.new_int_var(min(starts), max(starts), f"float_gs_{ev.name}_{t}")
             for g in range(num_g):
                 model2.add(gs_var == starts[g]).only_enforce_if(g_bools[g])
             float_group_start_vars[(id(ev), t)] = gs_var
 
-            # first_activity for this team
-            first_act = model2.new_int_var(H, H_end, f"first_act_{t}")
-            model2.add(first_act <= masaze_start[t])
-            model2.add(first_act <= sport_start[t])
-            model2.add(first_act <= test_start[t])
+            # Sprievodný as a real interval: start at group_start, variable duration
+            spriev_dur = model2.new_int_var(ev.min_duration, ev.max_duration, f"spriev_dur_{t}")
+            float_dur_vars[(id(ev), t)] = spriev_dur
 
-            # spriev_duration = min(first_act - gs, max_duration), capped
-            spriev_dur = model2.new_int_var(0, ev.max_duration, f"spriev_dur_{t}")
-            model2.add(spriev_dur <= first_act - gs_var)
-            model2.add(spriev_dur <= ev.max_duration)
+            spriev_end = model2.new_int_var(H, H_end, f"spriev_end_{t}")
+            model2.add(spriev_end == gs_var + spriev_dur)
+
+            # No overlap: sprievodný must not collide with masáže/šport/test
+            for label, a_start, a_end in [
+                ("mas", masaze_start[t], masaze_end[t]),
+                ("sport", sport_start[t], sport_end[t]),
+                ("test", test_start[t], test_end[t]),
+            ]:
+                b = model2.new_bool_var(f"spriev_vs_{label}_{t}")
+                model2.add(spriev_end <= a_start).only_enforce_if(b)
+                model2.add(a_end <= gs_var).only_enforce_if(~b)
+
+            # No overlap with non-floating shared events (e.g. obed)
+            for ev_idx2, ev2 in enumerate(config.shared_events):
+                if ev2.floating or not ev2.overlaps_window(H, H_end):
+                    continue
+                if (ev_idx2, t) not in ev_start_vars:
+                    continue
+                ev2_s = ev_start_vars[(ev_idx2, t)]
+                ev2_dur = ev2.duration
+                if isinstance(ev2_s, int):
+                    b = model2.new_bool_var(f"spriev_vs_ev{ev_idx2}_{t}")
+                    model2.add(spriev_end <= ev2_s).only_enforce_if(b)
+                    model2.add(ev2_s + ev2_dur <= gs_var).only_enforce_if(~b)
+                else:
+                    ev2_g_bools = ev_group_vars[(ev_idx2, t)]
+                    for g2 in range(ev2.num_groups):
+                        gs2 = ev2.group_starts[g2]
+                        ge2 = gs2 + ev2_dur
+                        b = model2.new_bool_var(f"spriev_vs_ev{ev_idx2}_g{g2}_{t}")
+                        model2.add(spriev_end <= gs2).only_enforce_if([ev2_g_bools[g2], b])
+                        model2.add(ge2 <= gs_var).only_enforce_if([ev2_g_bools[g2], ~b])
 
             total_spriev += spriev_dur
+
+        # Enforce group sizes
+        for g in range(num_g):
+            model2.add(sum(all_g_bools[t][g] for t in range(N)) <= sizes[g])
 
     model2.maximize(total_spriev)
 
@@ -447,7 +480,6 @@ def solve(config: SolverConfig):
     status2 = solver2.solve(model2)
 
     if status2 not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        # Fallback to pass 1 result — no sprievodný optimization
         solver2 = solver
         masaze_start = variables["masaze_start"]
         sport_start = variables["sport_start"]
@@ -458,6 +490,7 @@ def solve(config: SolverConfig):
         ev_start_vars = variables["ev_start_vars"]
         ev_group_vars = variables["ev_group_vars"]
         float_group_start_vars = {}
+        float_dur_vars = {}
 
     # Build result
     teams = {}
@@ -497,42 +530,16 @@ def solve(config: SolverConfig):
             ee = es + ev.duration
             entries.append((ev.name, min_to_time(es), min_to_time(ee), ev.category))
 
-        # Post-processing: add floating sprievodný program
+        # Add floating sprievodný program from solver result
         for ev in floating_events:
-            if (id(ev), t) in float_group_start_vars:
+            if (id(ev), t) in float_group_start_vars and (id(ev), t) in float_dur_vars:
                 gs = solver2.value(float_group_start_vars[(id(ev), t)])
+                dur = solver2.value(float_dur_vars[(id(ev), t)])
+                entries.append((ev.name, min_to_time(gs), min_to_time(gs + dur), ev.category))
             else:
                 gs = ev.start_time
-            first_act = min(solver2.value(masaze_start[t]),
-                            solver2.value(sport_start[t]),
-                            solver2.value(test_start[t]))
-            ee = min(first_act, gs + ev.max_duration)
-            if ee - gs >= ev.min_duration:
-                entries.append((ev.name, min_to_time(gs), min_to_time(ee), ev.category))
-            else:
-                # Fallback: find largest gap and place sprievodný there
-                comp_entries = [(int(s[:2])*60+int(s[3:]), int(e[:2])*60+int(e[3:]))
-                               for _, s, e, _ in entries]
-                comp_entries.sort()
-                gaps = []
-                if comp_entries and comp_entries[0][0] > H:
-                    gaps.append((H, comp_entries[0][0]))
-                for i in range(len(comp_entries) - 1):
-                    gap_s = comp_entries[i][1]
-                    gap_e = comp_entries[i + 1][0]
-                    if gap_e - gap_s > 0:
-                        gaps.append((gap_s, gap_e))
-                # Find largest gap >= min_duration
-                best = None
-                best_dur = 0
-                for gap_s, gap_e in gaps:
-                    avail = min(gap_e - gap_s, ev.max_duration)
-                    if avail >= ev.min_duration and avail > best_dur:
-                        best = (gap_s, gap_s + avail)
-                        best_dur = avail
-                if best:
-                    entries.append((ev.name, min_to_time(best[0]),
-                                    min_to_time(best[1]), ev.category))
+                entries.append((ev.name, min_to_time(gs),
+                                min_to_time(gs + ev.min_duration), ev.category))
 
         entries.sort(key=lambda x: x[1])
         teams[t + 1] = entries
