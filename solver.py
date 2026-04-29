@@ -93,9 +93,9 @@ class SolverConfig:
             color_bg="#D9D9D9", color_text="#333333",
         ),
         SharedEvent(
-            name="Sprievodný program počas súťaže", start_time=525, duration=90,
+            name="Sprievodný program počas súťaže", start_time=525, duration=30,
             color_bg="#D9D9D9", color_text="#333333",
-            num_groups=4, group_starts=[525, 615, 735, 825],
+            num_groups=3, group_starts=[525, 615, 735],
         ),
         SharedEvent(
             name="Obed", start_time=660, duration=30,
@@ -222,20 +222,123 @@ def solve(config: SolverConfig):
         model.add(sport_end[t] + TRANSFER <= test_start[t]).only_enforce_if(b_st)
         model.add(test_end[t] + TRANSFER <= sport_start[t]).only_enforce_if(~b_st)
 
+    # For multi-group events, let the solver choose which group each team attends
+    ev_group_vars = {}  # (ev_idx, t) -> group var
+    ev_start_vars = {}  # (ev_idx, t) -> start int var
+
+    for ev_idx, ev in enumerate(config.shared_events):
+        if not ev.overlaps_window(H, H_end):
+            continue
+
+        if ev.num_groups > 1:
+            sizes = ev.effective_group_sizes(N)
+            # Bool vars: group_bools[t][g] = True iff team t is in group g
+            group_bools = []
+            for t in range(N):
+                t_bools = []
+                for g in range(ev.num_groups):
+                    t_bools.append(model.new_bool_var(f"ev{ev_idx}_t{t}_g{g}"))
+                group_bools.append(t_bools)
+                # Each team in exactly one group
+                model.add_exactly_one(t_bools)
+
+                # Link start time to group assignment
+                ev_s = model.new_int_var(min(ev.group_starts), max(ev.group_starts),
+                                         f"ev{ev_idx}_start_{t}")
+                for g in range(ev.num_groups):
+                    model.add(ev_s == ev.group_starts[g]).only_enforce_if(t_bools[g])
+                ev_start_vars[(ev_idx, t)] = ev_s
+                ev_group_vars[(ev_idx, t)] = t_bools
+
+            # Enforce group sizes
+            for g in range(ev.num_groups):
+                model.add(sum(group_bools[t][g] for t in range(N)) == sizes[g])
+        else:
+            for t in range(N):
+                ev_start_vars[(ev_idx, t)] = ev.start_time
+
+    # Shared events must not overlap with main activities
+    for t in range(N):
         for ev_idx, ev in enumerate(config.shared_events):
             if not ev.overlaps_window(H, H_end):
                 continue
-            ev_start = ev.get_start_for_team(t, N)
-            ev_end = ev_start + ev.duration
+            if (ev_idx, t) not in ev_start_vars:
+                continue
 
-            for label, a_start, a_end in [
-                ("mas", masaze_start[t], masaze_end[t]),
-                ("sport", sport_start[t], sport_end[t]),
-                ("test", test_start[t], test_end[t]),
-            ]:
-                b = model.new_bool_var(f"{label}_vs_ev{ev_idx}_{t}")
-                model.add(a_end <= ev_start).only_enforce_if(b)
-                model.add(a_start >= ev_end).only_enforce_if(~b)
+            ev_s = ev_start_vars[(ev_idx, t)]
+            ev_dur = ev.duration
+
+            if isinstance(ev_s, int):
+                # Fixed start — simple disjunction
+                if ev_s >= H_end:
+                    continue  # event is after competition, no constraint needed
+                for label, a_start, a_end in [
+                    ("mas", masaze_start[t], masaze_end[t]),
+                    ("sport", sport_start[t], sport_end[t]),
+                    ("test", test_start[t], test_end[t]),
+                ]:
+                    b = model.new_bool_var(f"{label}_vs_ev{ev_idx}_{t}")
+                    model.add(a_end <= ev_s).only_enforce_if(b)
+                    model.add(a_start >= ev_s + ev_dur).only_enforce_if(~b)
+            else:
+                # Variable start (multi-group) — per-group constraints
+                g_bools = ev_group_vars[(ev_idx, t)]
+                for g in range(ev.num_groups):
+                    gs = ev.group_starts[g]
+                    ge = gs + ev_dur
+                    if gs >= H_end:
+                        continue  # this group is after competition
+                    for label, a_start, a_end in [
+                        ("mas", masaze_start[t], masaze_end[t]),
+                        ("sport", sport_start[t], sport_end[t]),
+                        ("test", test_start[t], test_end[t]),
+                    ]:
+                        # If team is in group g, activity must not overlap [gs, ge]
+                        b = model.new_bool_var(f"{label}_vs_ev{ev_idx}_g{g}_{t}")
+                        model.add(a_end <= gs).only_enforce_if([g_bools[g], b])
+                        model.add(a_start >= ge).only_enforce_if([g_bools[g], ~b])
+
+        # Shared events must not overlap each other for the same team
+        ev_indices = [i for i, ev in enumerate(config.shared_events)
+                      if ev.overlaps_window(H, H_end) and (i, t) in ev_start_vars]
+        for i_pos in range(len(ev_indices)):
+            for j_pos in range(i_pos + 1, len(ev_indices)):
+                ei = ev_indices[i_pos]
+                ej = ev_indices[j_pos]
+                ev_i = config.shared_events[ei]
+                ev_j = config.shared_events[ej]
+                si = ev_start_vars[(ei, t)]
+                sj = ev_start_vars[(ej, t)]
+
+                if isinstance(si, int) and isinstance(sj, int):
+                    if si + ev_i.duration > sj and sj + ev_j.duration > si:
+                        return None
+                elif isinstance(si, int):
+                    # si fixed, sj variable — for each group of ej, check feasibility
+                    g_bools_j = ev_group_vars[(ej, t)]
+                    for g in range(ev_j.num_groups):
+                        gs_j = ev_j.group_starts[g]
+                        # If overlap between fixed si and this group's time
+                        if si + ev_i.duration > gs_j and gs_j + ev_j.duration > si:
+                            model.add(g_bools_j[g] == 0)
+                elif isinstance(sj, int):
+                    g_bools_i = ev_group_vars[(ei, t)]
+                    for g in range(ev_i.num_groups):
+                        gs_i = ev_i.group_starts[g]
+                        if gs_i + ev_i.duration > sj and sj + ev_j.duration > gs_i:
+                            model.add(g_bools_i[g] == 0)
+                else:
+                    # Both variable — for each pair of groups, forbid overlapping ones
+                    g_bools_i = ev_group_vars[(ei, t)]
+                    g_bools_j = ev_group_vars[(ej, t)]
+                    for gi in range(ev_i.num_groups):
+                        gs_i = ev_i.group_starts[gi]
+                        for gj in range(ev_j.num_groups):
+                            gs_j = ev_j.group_starts[gj]
+                            if (gs_i + ev_i.duration > gs_j
+                                    and gs_j + ev_j.duration > gs_i):
+                                # These two groups overlap — can't both be chosen
+                                model.add_bool_or([~g_bools_i[gi], ~g_bools_j[gj]])
 
     makespan = model.new_int_var(H, H_end, "makespan")
     for t in range(N):
@@ -274,10 +377,17 @@ def solve(config: SolverConfig):
             entries.append((a.name, min_to_time(ts),
                             min_to_time(ts + a.duration), a.category))
 
-        for ev in config.shared_events:
-            ev_start = ev.get_start_for_team(t, N)
-            entries.append((ev.name, min_to_time(ev_start),
-                            min_to_time(ev_start + ev.duration), ev.category))
+        for ev_idx, ev in enumerate(config.shared_events):
+            if (ev_idx, t) in ev_start_vars:
+                ev_s = ev_start_vars[(ev_idx, t)]
+                if isinstance(ev_s, int):
+                    es = ev_s
+                else:
+                    es = solver.value(ev_s)
+            else:
+                es = ev.get_start_for_team(t, N)
+            entries.append((ev.name, min_to_time(es),
+                            min_to_time(es + ev.duration), ev.category))
 
         entries.sort(key=lambda x: x[1])
         teams[t + 1] = entries
