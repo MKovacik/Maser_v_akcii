@@ -80,6 +80,20 @@
         "group_sizes": []
       },
       {
+        "name": "Sprievodný program počas súťaže",
+        "start_time": 525,
+        "duration": 30,
+        "color_bg": "#D9D9D9",
+        "color_text": "#333333",
+        "num_groups": 3,
+        "group_starts": [
+          525,
+          615,
+          735
+        ],
+        "group_sizes": []
+      },
+      {
         "name": "Obed",
         "start_time": 660,
         "duration": 30,
@@ -103,7 +117,7 @@
         "group_sizes": []
       },
       {
-        "name": "Sprievodný program",
+        "name": "Sprievodný program po skončení súťaže",
         "start_time": 840,
         "duration": 45,
         "color_bg": "#D9D9D9",
@@ -169,28 +183,34 @@
         "sport"
       ],
       [
+        "Test",
+        "09:30",
+        "09:45",
+        "test"
+      ],
+      [
+        "Sprievodný program počas súťaže",
+        "10:15",
+        "10:45",
+        "shared_sprievodn__program_po_as_s__a_e"
+      ],
+      [
         "Klasická masáž (Penzión Caritas)",
-        "09:35",
-        "10:00",
+        "10:50",
+        "11:15",
         "klas"
       ],
       [
         "Freestyle masáž (Penzión Caritas)",
-        "10:00",
-        "10:25",
+        "11:15",
+        "11:40",
         "free"
       ],
       [
         "Obed",
-        "11:00",
-        "11:30",
+        "12:30",
+        "13:00",
         "shared_obed"
-      ],
-      [
-        "Test",
-        "11:45",
-        "12:00",
-        "test"
       ],
       [
         "Ukončenie súťaže",
@@ -199,10 +219,10 @@
         "shared_ukon_enie_s__a_e"
       ],
       [
-        "Sprievodný program",
+        "Sprievodný program po skončení súťaže",
         "14:00",
         "14:45",
-        "shared_sprievodn__program"
+        "shared_sprievodn__program_po_skon_en__s__a_e"
       ],
       [
         "Vyhlásenie výsledkov",
@@ -237,46 +257,52 @@
         "free"
       ],
       [
+        "Test",
+        "09:45",
+        "10:00",
+        "test"
+      ],
+      [
         "Obed",
         "11:00",
         "11:30",
         "shared_obed"
       ],
       [
-        "Test",
-        "11:30",
-        "11:45",
-        "test"
-      ],
-      [
         "Hod medicinbalom",
-        "12:45",
-        "12:50",
+        "11:40",
+        "11:45",
         "sport"
       ],
       [
         "Ľah-sed",
-        "12:50",
-        "12:55",
+        "11:45",
+        "11:50",
         "sport"
       ],
       [
         "Beh na 50m",
-        "12:55",
-        "13:00",
+        "11:50",
+        "11:55",
         "sport"
       ],
       [
         "Frisbee na cieľ",
-        "13:00",
-        "13:05",
+        "11:55",
+        "12:00",
         "sport"
       ],
       [
         "Zápis výsledkov",
-        "13:05",
-        "13:10",
+        "12:00",
+        "12:05",
         "sport"
+      ],
+      [
+        "Sprievodný program počas súťaže",
+        "12:15",
+        "12:45",
+        "shared_sprievodn__program_po_as_s__a_e"
       ],
       [
         "Ukončenie súťaže",
@@ -285,10 +311,10 @@
         "shared_ukon_enie_s__a_e"
       ],
       [
-        "Sprievodný program",
+        "Sprievodný program po skončení súťaže",
         "14:00",
         "14:45",
-        "shared_sprievodn__program"
+        "shared_sprievodn__program_po_skon_en__s__a_e"
       ],
       [
         "Vyhlásenie výsledkov",
@@ -298,6 +324,558 @@
       ]
     ],
     "3": [
+      [
+        "Registrácia",
+        "08:00",
+        "08:30",
+        "shared_registr_cia"
+      ],
+      [
+        "Otvorenie súťaže",
+        "08:30",
+        "08:45",
+        "shared_otvorenie_s__a_e"
+      ],
+      [
+        "Hod medicinbalom",
+        "09:10",
+        "09:15",
+        "sport"
+      ],
+      [
+        "Ľah-sed",
+        "09:15",
+        "09:20",
+        "sport"
+      ],
+      [
+        "Beh na 50m",
+        "09:20",
+        "09:25",
+        "sport"
+      ],
+      [
+        "Frisbee na cieľ",
+        "09:25",
+        "09:30",
+        "sport"
+      ],
+      [
+        "Zápis výsledkov",
+        "09:30",
+        "09:35",
+        "sport"
+      ],
+      [
+        "Klasická masáž (Penzión Caritas)",
+        "10:00",
+        "10:25",
+        "klas"
+      ],
+      [
+        "Freestyle masáž (Penzión Caritas)",
+        "10:25",
+        "10:50",
+        "free"
+      ],
+      [
+        "Obed",
+        "11:00",
+        "11:30",
+        "shared_obed"
+      ],
+      [
+        "Test",
+        "11:55",
+        "12:10",
+        "test"
+      ],
+      [
+        "Sprievodný program počas súťaže",
+        "12:15",
+        "12:45",
+        "shared_sprievodn__program_po_as_s__a_e"
+      ],
+      [
+        "Ukončenie súťaže",
+        "13:45",
+        "13:50",
+        "shared_ukon_enie_s__a_e"
+      ],
+      [
+        "Sprievodný program po skončení súťaže",
+        "14:00",
+        "14:45",
+        "shared_sprievodn__program_po_skon_en__s__a_e"
+      ],
+      [
+        "Vyhlásenie výsledkov",
+        "15:00",
+        "15:30",
+        "shared_vyhl_senie_v_sledkov"
+      ]
+    ],
+    "4": [
+      [
+        "Registrácia",
+        "08:00",
+        "08:30",
+        "shared_registr_cia"
+      ],
+      [
+        "Otvorenie súťaže",
+        "08:30",
+        "08:45",
+        "shared_otvorenie_s__a_e"
+      ],
+      [
+        "Sprievodný program počas súťaže",
+        "08:45",
+        "09:15",
+        "shared_sprievodn__program_po_as_s__a_e"
+      ],
+      [
+        "Klasická masáž (Penzión Caritas)",
+        "09:35",
+        "10:00",
+        "klas"
+      ],
+      [
+        "Freestyle masáž (Penzión Caritas)",
+        "10:00",
+        "10:25",
+        "free"
+      ],
+      [
+        "Test",
+        "10:35",
+        "10:50",
+        "test"
+      ],
+      [
+        "Obed",
+        "11:00",
+        "11:30",
+        "shared_obed"
+      ],
+      [
+        "Hod medicinbalom",
+        "12:30",
+        "12:35",
+        "sport"
+      ],
+      [
+        "Ľah-sed",
+        "12:35",
+        "12:40",
+        "sport"
+      ],
+      [
+        "Beh na 50m",
+        "12:40",
+        "12:45",
+        "sport"
+      ],
+      [
+        "Frisbee na cieľ",
+        "12:45",
+        "12:50",
+        "sport"
+      ],
+      [
+        "Zápis výsledkov",
+        "12:50",
+        "12:55",
+        "sport"
+      ],
+      [
+        "Ukončenie súťaže",
+        "13:45",
+        "13:50",
+        "shared_ukon_enie_s__a_e"
+      ],
+      [
+        "Sprievodný program po skončení súťaže",
+        "14:00",
+        "14:45",
+        "shared_sprievodn__program_po_skon_en__s__a_e"
+      ],
+      [
+        "Vyhlásenie výsledkov",
+        "15:00",
+        "15:30",
+        "shared_vyhl_senie_v_sledkov"
+      ]
+    ],
+    "5": [
+      [
+        "Registrácia",
+        "08:00",
+        "08:30",
+        "shared_registr_cia"
+      ],
+      [
+        "Otvorenie súťaže",
+        "08:30",
+        "08:45",
+        "shared_otvorenie_s__a_e"
+      ],
+      [
+        "Sprievodný program počas súťaže",
+        "08:45",
+        "09:15",
+        "shared_sprievodn__program_po_as_s__a_e"
+      ],
+      [
+        "Test",
+        "09:15",
+        "09:30",
+        "test"
+      ],
+      [
+        "Hod medicinbalom",
+        "10:00",
+        "10:05",
+        "sport"
+      ],
+      [
+        "Ľah-sed",
+        "10:05",
+        "10:10",
+        "sport"
+      ],
+      [
+        "Beh na 50m",
+        "10:10",
+        "10:15",
+        "sport"
+      ],
+      [
+        "Frisbee na cieľ",
+        "10:15",
+        "10:20",
+        "sport"
+      ],
+      [
+        "Zápis výsledkov",
+        "10:20",
+        "10:25",
+        "sport"
+      ],
+      [
+        "Obed",
+        "11:00",
+        "11:30",
+        "shared_obed"
+      ],
+      [
+        "Klasická masáž (Penzión Caritas)",
+        "12:30",
+        "12:55",
+        "klas"
+      ],
+      [
+        "Freestyle masáž (Penzión Caritas)",
+        "12:55",
+        "13:20",
+        "free"
+      ],
+      [
+        "Ukončenie súťaže",
+        "13:45",
+        "13:50",
+        "shared_ukon_enie_s__a_e"
+      ],
+      [
+        "Sprievodný program po skončení súťaže",
+        "14:00",
+        "14:45",
+        "shared_sprievodn__program_po_skon_en__s__a_e"
+      ],
+      [
+        "Vyhlásenie výsledkov",
+        "15:00",
+        "15:30",
+        "shared_vyhl_senie_v_sledkov"
+      ]
+    ],
+    "6": [
+      [
+        "Registrácia",
+        "08:00",
+        "08:30",
+        "shared_registr_cia"
+      ],
+      [
+        "Otvorenie súťaže",
+        "08:30",
+        "08:45",
+        "shared_otvorenie_s__a_e"
+      ],
+      [
+        "Hod medicinbalom",
+        "10:25",
+        "10:30",
+        "sport"
+      ],
+      [
+        "Ľah-sed",
+        "10:30",
+        "10:35",
+        "sport"
+      ],
+      [
+        "Beh na 50m",
+        "10:35",
+        "10:40",
+        "sport"
+      ],
+      [
+        "Frisbee na cieľ",
+        "10:40",
+        "10:45",
+        "sport"
+      ],
+      [
+        "Zápis výsledkov",
+        "10:45",
+        "10:50",
+        "sport"
+      ],
+      [
+        "Obed",
+        "11:00",
+        "11:30",
+        "shared_obed"
+      ],
+      [
+        "Test",
+        "11:40",
+        "11:55",
+        "test"
+      ],
+      [
+        "Sprievodný program počas súťaže",
+        "12:15",
+        "12:45",
+        "shared_sprievodn__program_po_as_s__a_e"
+      ],
+      [
+        "Klasická masáž (Penzión Caritas)",
+        "12:55",
+        "13:20",
+        "klas"
+      ],
+      [
+        "Freestyle masáž (Penzión Caritas)",
+        "13:20",
+        "13:45",
+        "free"
+      ],
+      [
+        "Ukončenie súťaže",
+        "13:45",
+        "13:50",
+        "shared_ukon_enie_s__a_e"
+      ],
+      [
+        "Sprievodný program po skončení súťaže",
+        "14:00",
+        "14:45",
+        "shared_sprievodn__program_po_skon_en__s__a_e"
+      ],
+      [
+        "Vyhlásenie výsledkov",
+        "15:00",
+        "15:30",
+        "shared_vyhl_senie_v_sledkov"
+      ]
+    ],
+    "7": [
+      [
+        "Registrácia",
+        "08:00",
+        "08:30",
+        "shared_registr_cia"
+      ],
+      [
+        "Otvorenie súťaže",
+        "08:30",
+        "08:45",
+        "shared_otvorenie_s__a_e"
+      ],
+      [
+        "Test",
+        "10:00",
+        "10:15",
+        "test"
+      ],
+      [
+        "Sprievodný program počas súťaže",
+        "10:15",
+        "10:45",
+        "shared_sprievodn__program_po_as_s__a_e"
+      ],
+      [
+        "Obed",
+        "11:00",
+        "11:30",
+        "shared_obed"
+      ],
+      [
+        "Klasická masáž (Penzión Caritas)",
+        "12:05",
+        "12:30",
+        "klas"
+      ],
+      [
+        "Freestyle masáž (Penzión Caritas)",
+        "12:30",
+        "12:55",
+        "free"
+      ],
+      [
+        "Hod medicinbalom",
+        "13:05",
+        "13:10",
+        "sport"
+      ],
+      [
+        "Ľah-sed",
+        "13:10",
+        "13:15",
+        "sport"
+      ],
+      [
+        "Beh na 50m",
+        "13:15",
+        "13:20",
+        "sport"
+      ],
+      [
+        "Frisbee na cieľ",
+        "13:20",
+        "13:25",
+        "sport"
+      ],
+      [
+        "Zápis výsledkov",
+        "13:25",
+        "13:30",
+        "sport"
+      ],
+      [
+        "Ukončenie súťaže",
+        "13:45",
+        "13:50",
+        "shared_ukon_enie_s__a_e"
+      ],
+      [
+        "Sprievodný program po skončení súťaže",
+        "14:00",
+        "14:45",
+        "shared_sprievodn__program_po_skon_en__s__a_e"
+      ],
+      [
+        "Vyhlásenie výsledkov",
+        "15:00",
+        "15:30",
+        "shared_vyhl_senie_v_sledkov"
+      ]
+    ],
+    "8": [
+      [
+        "Registrácia",
+        "08:00",
+        "08:30",
+        "shared_registr_cia"
+      ],
+      [
+        "Otvorenie súťaže",
+        "08:30",
+        "08:45",
+        "shared_otvorenie_s__a_e"
+      ],
+      [
+        "Sprievodný program počas súťaže",
+        "08:45",
+        "09:15",
+        "shared_sprievodn__program_po_as_s__a_e"
+      ],
+      [
+        "Hod medicinbalom",
+        "09:35",
+        "09:40",
+        "sport"
+      ],
+      [
+        "Ľah-sed",
+        "09:40",
+        "09:45",
+        "sport"
+      ],
+      [
+        "Beh na 50m",
+        "09:45",
+        "09:50",
+        "sport"
+      ],
+      [
+        "Frisbee na cieľ",
+        "09:50",
+        "09:55",
+        "sport"
+      ],
+      [
+        "Zápis výsledkov",
+        "09:55",
+        "10:00",
+        "sport"
+      ],
+      [
+        "Test",
+        "10:15",
+        "10:30",
+        "test"
+      ],
+      [
+        "Klasická masáž (Penzión Caritas)",
+        "11:15",
+        "11:40",
+        "klas"
+      ],
+      [
+        "Freestyle masáž (Penzión Caritas)",
+        "11:40",
+        "12:05",
+        "free"
+      ],
+      [
+        "Obed",
+        "12:30",
+        "13:00",
+        "shared_obed"
+      ],
+      [
+        "Ukončenie súťaže",
+        "13:45",
+        "13:50",
+        "shared_ukon_enie_s__a_e"
+      ],
+      [
+        "Sprievodný program po skončení súťaže",
+        "14:00",
+        "14:45",
+        "shared_sprievodn__program_po_skon_en__s__a_e"
+      ],
+      [
+        "Vyhlásenie výsledkov",
+        "15:00",
+        "15:30",
+        "shared_vyhl_senie_v_sledkov"
+      ]
+    ],
+    "9": [
       [
         "Registrácia",
         "08:00",
@@ -329,550 +907,40 @@
         "free"
       ],
       [
-        "Obed",
-        "11:00",
-        "11:30",
-        "shared_obed"
-      ],
-      [
-        "Hod medicinbalom",
-        "13:10",
-        "13:15",
-        "sport"
-      ],
-      [
-        "Ľah-sed",
-        "13:15",
-        "13:20",
-        "sport"
-      ],
-      [
-        "Beh na 50m",
-        "13:20",
-        "13:25",
-        "sport"
-      ],
-      [
-        "Frisbee na cieľ",
-        "13:25",
-        "13:30",
-        "sport"
-      ],
-      [
-        "Zápis výsledkov",
-        "13:30",
-        "13:35",
-        "sport"
-      ],
-      [
-        "Ukončenie súťaže",
-        "13:45",
-        "13:50",
-        "shared_ukon_enie_s__a_e"
-      ],
-      [
-        "Sprievodný program",
-        "14:00",
-        "14:45",
-        "shared_sprievodn__program"
-      ],
-      [
-        "Vyhlásenie výsledkov",
-        "15:00",
-        "15:30",
-        "shared_vyhl_senie_v_sledkov"
-      ]
-    ],
-    "4": [
-      [
-        "Registrácia",
-        "08:00",
-        "08:30",
-        "shared_registr_cia"
-      ],
-      [
-        "Otvorenie súťaže",
-        "08:30",
-        "08:45",
-        "shared_otvorenie_s__a_e"
-      ],
-      [
-        "Test",
-        "10:30",
-        "10:45",
-        "test"
-      ],
-      [
-        "Obed",
-        "11:00",
-        "11:30",
-        "shared_obed"
-      ],
-      [
-        "Hod medicinbalom",
-        "11:30",
-        "11:35",
-        "sport"
-      ],
-      [
-        "Ľah-sed",
-        "11:35",
-        "11:40",
-        "sport"
-      ],
-      [
-        "Beh na 50m",
-        "11:40",
-        "11:45",
-        "sport"
-      ],
-      [
-        "Frisbee na cieľ",
-        "11:45",
-        "11:50",
-        "sport"
-      ],
-      [
-        "Zápis výsledkov",
-        "11:50",
-        "11:55",
-        "sport"
-      ],
-      [
-        "Klasická masáž (Penzión Caritas)",
-        "12:05",
-        "12:30",
-        "klas"
-      ],
-      [
-        "Freestyle masáž (Penzión Caritas)",
-        "12:30",
-        "12:55",
-        "free"
-      ],
-      [
-        "Ukončenie súťaže",
-        "13:45",
-        "13:50",
-        "shared_ukon_enie_s__a_e"
-      ],
-      [
-        "Sprievodný program",
-        "14:00",
-        "14:45",
-        "shared_sprievodn__program"
-      ],
-      [
-        "Vyhlásenie výsledkov",
-        "15:00",
-        "15:30",
-        "shared_vyhl_senie_v_sledkov"
-      ]
-    ],
-    "5": [
-      [
-        "Registrácia",
-        "08:00",
-        "08:30",
-        "shared_registr_cia"
-      ],
-      [
-        "Otvorenie súťaže",
-        "08:30",
-        "08:45",
-        "shared_otvorenie_s__a_e"
-      ],
-      [
-        "Test",
-        "10:45",
-        "11:00",
-        "test"
-      ],
-      [
-        "Obed",
-        "11:00",
-        "11:30",
-        "shared_obed"
-      ],
-      [
-        "Hod medicinbalom",
-        "11:55",
-        "12:00",
-        "sport"
-      ],
-      [
-        "Ľah-sed",
-        "12:00",
-        "12:05",
-        "sport"
-      ],
-      [
-        "Beh na 50m",
-        "12:05",
-        "12:10",
-        "sport"
-      ],
-      [
-        "Frisbee na cieľ",
-        "12:10",
-        "12:15",
-        "sport"
-      ],
-      [
-        "Zápis výsledkov",
-        "12:15",
-        "12:20",
-        "sport"
-      ],
-      [
-        "Klasická masáž (Penzión Caritas)",
-        "12:30",
-        "12:55",
-        "klas"
-      ],
-      [
-        "Freestyle masáž (Penzión Caritas)",
-        "12:55",
-        "13:20",
-        "free"
-      ],
-      [
-        "Ukončenie súťaže",
-        "13:45",
-        "13:50",
-        "shared_ukon_enie_s__a_e"
-      ],
-      [
-        "Sprievodný program",
-        "14:00",
-        "14:45",
-        "shared_sprievodn__program"
-      ],
-      [
-        "Vyhlásenie výsledkov",
-        "15:00",
-        "15:30",
-        "shared_vyhl_senie_v_sledkov"
-      ]
-    ],
-    "6": [
-      [
-        "Registrácia",
-        "08:00",
-        "08:30",
-        "shared_registr_cia"
-      ],
-      [
-        "Otvorenie súťaže",
-        "08:30",
-        "08:45",
-        "shared_otvorenie_s__a_e"
-      ],
-      [
-        "Test",
+        "Sprievodný program počas súťaže",
         "10:15",
-        "10:30",
-        "test"
-      ],
-      [
-        "Obed",
-        "11:00",
-        "11:30",
-        "shared_obed"
-      ],
-      [
-        "Hod medicinbalom",
-        "12:20",
-        "12:25",
-        "sport"
-      ],
-      [
-        "Ľah-sed",
-        "12:25",
-        "12:30",
-        "sport"
-      ],
-      [
-        "Beh na 50m",
-        "12:30",
-        "12:35",
-        "sport"
-      ],
-      [
-        "Frisbee na cieľ",
-        "12:35",
-        "12:40",
-        "sport"
-      ],
-      [
-        "Zápis výsledkov",
-        "12:40",
-        "12:45",
-        "sport"
-      ],
-      [
-        "Klasická masáž (Penzión Caritas)",
-        "12:55",
-        "13:20",
-        "klas"
-      ],
-      [
-        "Freestyle masáž (Penzión Caritas)",
-        "13:20",
-        "13:45",
-        "free"
-      ],
-      [
-        "Ukončenie súťaže",
-        "13:45",
-        "13:50",
-        "shared_ukon_enie_s__a_e"
-      ],
-      [
-        "Sprievodný program",
-        "14:00",
-        "14:45",
-        "shared_sprievodn__program"
-      ],
-      [
-        "Vyhlásenie výsledkov",
-        "15:00",
-        "15:30",
-        "shared_vyhl_senie_v_sledkov"
-      ]
-    ],
-    "7": [
-      [
-        "Registrácia",
-        "08:00",
-        "08:30",
-        "shared_registr_cia"
-      ],
-      [
-        "Otvorenie súťaže",
-        "08:30",
-        "08:45",
-        "shared_otvorenie_s__a_e"
-      ],
-      [
-        "Test",
-        "09:15",
-        "09:30",
-        "test"
-      ],
-      [
-        "Hod medicinbalom",
-        "09:50",
-        "09:55",
-        "sport"
-      ],
-      [
-        "Ľah-sed",
-        "09:55",
-        "10:00",
-        "sport"
-      ],
-      [
-        "Beh na 50m",
-        "10:00",
-        "10:05",
-        "sport"
-      ],
-      [
-        "Frisbee na cieľ",
-        "10:05",
-        "10:10",
-        "sport"
-      ],
-      [
-        "Zápis výsledkov",
-        "10:10",
-        "10:15",
-        "sport"
-      ],
-      [
-        "Klasická masáž (Penzión Caritas)",
-        "10:25",
-        "10:50",
-        "klas"
-      ],
-      [
-        "Freestyle masáž (Penzión Caritas)",
-        "10:50",
-        "11:15",
-        "free"
-      ],
-      [
-        "Obed",
-        "12:30",
-        "13:00",
-        "shared_obed"
-      ],
-      [
-        "Ukončenie súťaže",
-        "13:45",
-        "13:50",
-        "shared_ukon_enie_s__a_e"
-      ],
-      [
-        "Sprievodný program",
-        "14:00",
-        "14:45",
-        "shared_sprievodn__program"
-      ],
-      [
-        "Vyhlásenie výsledkov",
-        "15:00",
-        "15:30",
-        "shared_vyhl_senie_v_sledkov"
-      ]
-    ],
-    "8": [
-      [
-        "Registrácia",
-        "08:00",
-        "08:30",
-        "shared_registr_cia"
-      ],
-      [
-        "Otvorenie súťaže",
-        "08:30",
-        "08:45",
-        "shared_otvorenie_s__a_e"
-      ],
-      [
-        "Test",
-        "10:00",
-        "10:15",
-        "test"
-      ],
-      [
-        "Hod medicinbalom",
-        "10:40",
         "10:45",
-        "sport"
-      ],
-      [
-        "Ľah-sed",
-        "10:45",
-        "10:50",
-        "sport"
-      ],
-      [
-        "Beh na 50m",
-        "10:50",
-        "10:55",
-        "sport"
-      ],
-      [
-        "Frisbee na cieľ",
-        "10:55",
-        "11:00",
-        "sport"
-      ],
-      [
-        "Zápis výsledkov",
-        "11:00",
-        "11:05",
-        "sport"
-      ],
-      [
-        "Klasická masáž (Penzión Caritas)",
-        "11:15",
-        "11:40",
-        "klas"
-      ],
-      [
-        "Freestyle masáž (Penzión Caritas)",
-        "11:40",
-        "12:05",
-        "free"
-      ],
-      [
-        "Obed",
-        "12:30",
-        "13:00",
-        "shared_obed"
-      ],
-      [
-        "Ukončenie súťaže",
-        "13:45",
-        "13:50",
-        "shared_ukon_enie_s__a_e"
-      ],
-      [
-        "Sprievodný program",
-        "14:00",
-        "14:45",
-        "shared_sprievodn__program"
-      ],
-      [
-        "Vyhlásenie výsledkov",
-        "15:00",
-        "15:30",
-        "shared_vyhl_senie_v_sledkov"
-      ]
-    ],
-    "9": [
-      [
-        "Registrácia",
-        "08:00",
-        "08:30",
-        "shared_registr_cia"
-      ],
-      [
-        "Otvorenie súťaže",
-        "08:30",
-        "08:45",
-        "shared_otvorenie_s__a_e"
-      ],
-      [
-        "Test",
-        "09:45",
-        "10:00",
-        "test"
+        "shared_sprievodn__program_po_as_s__a_e"
       ],
       [
         "Hod medicinbalom",
-        "11:05",
-        "11:10",
-        "sport"
-      ],
-      [
-        "Ľah-sed",
-        "11:10",
-        "11:15",
-        "sport"
-      ],
-      [
-        "Beh na 50m",
         "11:15",
         "11:20",
         "sport"
       ],
       [
-        "Frisbee na cieľ",
+        "Ľah-sed",
         "11:20",
         "11:25",
         "sport"
       ],
       [
-        "Zápis výsledkov",
+        "Beh na 50m",
         "11:25",
         "11:30",
         "sport"
       ],
       [
-        "Klasická masáž (Penzión Caritas)",
-        "11:40",
-        "12:05",
-        "klas"
+        "Frisbee na cieľ",
+        "11:30",
+        "11:35",
+        "sport"
       ],
       [
-        "Freestyle masáž (Penzión Caritas)",
-        "12:05",
-        "12:30",
-        "free"
+        "Zápis výsledkov",
+        "11:35",
+        "11:40",
+        "sport"
       ],
       [
         "Obed",
@@ -887,10 +955,10 @@
         "shared_ukon_enie_s__a_e"
       ],
       [
-        "Sprievodný program",
+        "Sprievodný program po skončení súťaže",
         "14:00",
         "14:45",
-        "shared_sprievodn__program"
+        "shared_sprievodn__program_po_skon_en__s__a_e"
       ],
       [
         "Vyhlásenie výsledkov",
@@ -913,52 +981,58 @@
         "shared_otvorenie_s__a_e"
       ],
       [
-        "Test",
-        "09:30",
-        "09:45",
-        "test"
-      ],
-      [
-        "Hod medicinbalom",
-        "10:15",
-        "10:20",
-        "sport"
-      ],
-      [
-        "Ľah-sed",
-        "10:20",
-        "10:25",
-        "sport"
-      ],
-      [
-        "Beh na 50m",
-        "10:25",
-        "10:30",
-        "sport"
-      ],
-      [
-        "Frisbee na cieľ",
-        "10:30",
-        "10:35",
-        "sport"
-      ],
-      [
-        "Zápis výsledkov",
-        "10:35",
-        "10:40",
-        "sport"
+        "Sprievodný program počas súťaže",
+        "08:45",
+        "09:15",
+        "shared_sprievodn__program_po_as_s__a_e"
       ],
       [
         "Klasická masáž (Penzión Caritas)",
+        "10:25",
         "10:50",
-        "11:15",
         "klas"
       ],
       [
         "Freestyle masáž (Penzión Caritas)",
+        "10:50",
         "11:15",
-        "11:40",
         "free"
+      ],
+      [
+        "Test",
+        "11:25",
+        "11:40",
+        "test"
+      ],
+      [
+        "Hod medicinbalom",
+        "12:05",
+        "12:10",
+        "sport"
+      ],
+      [
+        "Ľah-sed",
+        "12:10",
+        "12:15",
+        "sport"
+      ],
+      [
+        "Beh na 50m",
+        "12:15",
+        "12:20",
+        "sport"
+      ],
+      [
+        "Frisbee na cieľ",
+        "12:20",
+        "12:25",
+        "sport"
+      ],
+      [
+        "Zápis výsledkov",
+        "12:25",
+        "12:30",
+        "sport"
       ],
       [
         "Obed",
@@ -973,10 +1047,10 @@
         "shared_ukon_enie_s__a_e"
       ],
       [
-        "Sprievodný program",
+        "Sprievodný program po skončení súťaže",
         "14:00",
         "14:45",
-        "shared_sprievodn__program"
+        "shared_sprievodn__program_po_skon_en__s__a_e"
       ],
       [
         "Vyhlásenie výsledkov",
@@ -1005,45 +1079,51 @@
         "test"
       ],
       [
+        "Sprievodný program počas súťaže",
+        "10:15",
+        "10:45",
+        "shared_sprievodn__program_po_as_s__a_e"
+      ],
+      [
         "Hod medicinbalom",
-        "09:25",
-        "09:30",
+        "10:50",
+        "10:55",
         "sport"
       ],
       [
         "Ľah-sed",
-        "09:30",
-        "09:35",
+        "10:55",
+        "11:00",
         "sport"
       ],
       [
         "Beh na 50m",
-        "09:35",
-        "09:40",
+        "11:00",
+        "11:05",
         "sport"
       ],
       [
         "Frisbee na cieľ",
-        "09:40",
-        "09:45",
+        "11:05",
+        "11:10",
         "sport"
       ],
       [
         "Zápis výsledkov",
-        "09:45",
-        "09:50",
+        "11:10",
+        "11:15",
         "sport"
       ],
       [
         "Klasická masáž (Penzión Caritas)",
-        "10:00",
-        "10:25",
+        "11:40",
+        "12:05",
         "klas"
       ],
       [
         "Freestyle masáž (Penzión Caritas)",
-        "10:25",
-        "10:50",
+        "12:05",
+        "12:30",
         "free"
       ],
       [
@@ -1059,10 +1139,10 @@
         "shared_ukon_enie_s__a_e"
       ],
       [
-        "Sprievodný program",
+        "Sprievodný program po skončení súťaže",
         "14:00",
         "14:45",
-        "shared_sprievodn__program"
+        "shared_sprievodn__program_po_skon_en__s__a_e"
       ],
       [
         "Vyhlásenie výsledkov",
