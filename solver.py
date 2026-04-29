@@ -13,6 +13,9 @@ class SharedEvent:
     num_groups: int = 1
     group_starts: list[int] = field(default_factory=list)
     group_sizes: list[int] = field(default_factory=list)
+    floating: bool = False
+    min_duration: int = 0
+    max_duration: int = 0
 
     @property
     def category(self) -> str:
@@ -96,6 +99,7 @@ class SolverConfig:
             name="Sprievodný program počas súťaže", start_time=525, duration=30,
             color_bg="#D9D9D9", color_text="#333333",
             num_groups=3, group_starts=[525, 615, 735],
+            floating=True, min_duration=30, max_duration=90,
         ),
         SharedEvent(
             name="Obed", start_time=660, duration=30,
@@ -266,12 +270,12 @@ def solve(config: SolverConfig):
                 continue
 
             ev_s = ev_start_vars[(ev_idx, t)]
-            ev_dur = ev.duration
+            # For floating events, only block min_duration (teams can leave early)
+            ev_dur = ev.min_duration if ev.floating else ev.duration
 
             if isinstance(ev_s, int):
-                # Fixed start — simple disjunction
                 if ev_s >= H_end:
-                    continue  # event is after competition, no constraint needed
+                    continue
                 for label, a_start, a_end in [
                     ("mas", masaze_start[t], masaze_end[t]),
                     ("sport", sport_start[t], sport_end[t]),
@@ -281,19 +285,17 @@ def solve(config: SolverConfig):
                     model.add(a_end <= ev_s).only_enforce_if(b)
                     model.add(a_start >= ev_s + ev_dur).only_enforce_if(~b)
             else:
-                # Variable start (multi-group) — per-group constraints
                 g_bools = ev_group_vars[(ev_idx, t)]
                 for g in range(ev.num_groups):
                     gs = ev.group_starts[g]
                     ge = gs + ev_dur
                     if gs >= H_end:
-                        continue  # this group is after competition
+                        continue
                     for label, a_start, a_end in [
                         ("mas", masaze_start[t], masaze_end[t]),
                         ("sport", sport_start[t], sport_end[t]),
                         ("test", test_start[t], test_end[t]),
                     ]:
-                        # If team is in group g, activity must not overlap [gs, ge]
                         b = model.new_bool_var(f"{label}_vs_ev{ev_idx}_g{g}_{t}")
                         model.add(a_end <= gs).only_enforce_if([g_bools[g], b])
                         model.add(a_start >= ge).only_enforce_if([g_bools[g], ~b])
@@ -345,7 +347,23 @@ def solve(config: SolverConfig):
         model.add(makespan >= masaze_end[t])
         model.add(makespan >= sport_end[t])
         model.add(makespan >= test_end[t])
-    model.minimize(makespan)
+
+    # Minimize gaps: for each pair of activities, minimize distance between them
+    total_gaps = 0
+    for t in range(N):
+        for a_end, b_start in [
+            (masaze_end[t], sport_start[t]),
+            (masaze_end[t], test_start[t]),
+            (sport_end[t], masaze_start[t]),
+            (sport_end[t], test_start[t]),
+            (test_end[t], masaze_start[t]),
+            (test_end[t], sport_start[t]),
+        ]:
+            diff = model.new_int_var(0, H_end - H, f"gap_{t}_{id(a_end)}")
+            model.add(diff >= b_start - a_end)
+            total_gaps += diff
+
+    model.minimize(total_gaps)
 
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = 30
@@ -386,8 +404,23 @@ def solve(config: SolverConfig):
                     es = solver.value(ev_s)
             else:
                 es = ev.get_start_for_team(t, N)
-            entries.append((ev.name, min_to_time(es),
-                            min_to_time(es + ev.duration), ev.category))
+
+            if ev.floating:
+                # End = start of first activity after this event (capped at max_duration)
+                first_after = None
+                activity_starts = [solver.value(masaze_start[t]),
+                                   solver.value(sport_start[t]),
+                                   solver.value(test_start[t])]
+                for a_s in activity_starts:
+                    if a_s >= es + ev.min_duration:
+                        if first_after is None or a_s < first_after:
+                            first_after = a_s
+                ee = min(first_after or es + ev.max_duration,
+                         es + ev.max_duration)
+            else:
+                ee = es + ev.duration
+
+            entries.append((ev.name, min_to_time(es), min_to_time(ee), ev.category))
 
         entries.sort(key=lambda x: x[1])
         teams[t + 1] = entries
