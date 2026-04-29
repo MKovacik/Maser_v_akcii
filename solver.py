@@ -400,23 +400,6 @@ def solve(config: SolverConfig):
 
         for ev_idx, ev in enumerate(config.shared_events):
             if ev.floating:
-                # Find earliest activity start for this team
-                first_act = min(solver.value(masaze_start[t]),
-                                solver.value(sport_start[t]),
-                                solver.value(test_start[t]))
-                # Pick the latest group_start that is <= first_act
-                starts = sorted(ev.group_starts) if ev.group_starts else [ev.start_time]
-                es = starts[0]
-                for gs in starts:
-                    if gs <= first_act:
-                        es = gs
-                    else:
-                        break
-                # End = first activity start, capped at max_duration
-                ee = min(first_act, es + ev.max_duration)
-                # Only include if duration >= min_duration
-                if ee - es >= ev.min_duration:
-                    entries.append((ev.name, min_to_time(es), min_to_time(ee), ev.category))
                 continue
 
             if (ev_idx, t) in ev_start_vars:
@@ -431,6 +414,44 @@ def solve(config: SolverConfig):
             entries.append((ev.name, min_to_time(es), min_to_time(ee), ev.category))
 
         entries.sort(key=lambda x: x[1])
+
+        # Post-processing: fill largest gap with floating sprievodný program
+        for ev in config.shared_events:
+            if not ev.floating:
+                continue
+            starts = sorted(ev.group_starts) if ev.group_starts else [ev.start_time]
+            # Find gaps between consecutive entries (within competition window)
+            comp_entries = [(int(s[:2])*60+int(s[3:]), int(e[:2])*60+int(e[3:]))
+                           for _, s, e, c in entries
+                           if int(s[:2])*60+int(s[3:]) >= H]
+            comp_entries.sort()
+            # Also consider gap from competition start to first entry
+            gaps = []
+            if comp_entries:
+                if comp_entries[0][0] > H:
+                    gaps.append((H, comp_entries[0][0]))
+                for i in range(len(comp_entries) - 1):
+                    gap_start = comp_entries[i][1]
+                    gap_end = comp_entries[i + 1][0]
+                    if gap_end - gap_start > 0:
+                        gaps.append((gap_start, gap_end))
+
+            # Find best gap: largest one that contains a group_start
+            best = None
+            best_dur = 0
+            for gap_s, gap_e in gaps:
+                for gs in starts:
+                    # group_start must fall within gap
+                    if gs >= gap_s and gs < gap_e:
+                        avail = min(gap_e - gs, ev.max_duration)
+                        if avail >= ev.min_duration and avail > best_dur:
+                            best = (gs, gs + avail)
+                            best_dur = avail
+            if best:
+                entries.append((ev.name, min_to_time(best[0]),
+                                min_to_time(best[1]), ev.category))
+                entries.sort(key=lambda x: x[1])
+
         teams[t + 1] = entries
 
     return teams
