@@ -567,6 +567,8 @@ if "schedule" in st.session_state:
                     f.write(html_str)
                 with open(os.path.join(docs_dir, "schedule.json"), "w", encoding="utf-8") as f:
                     f.write(schedule_to_json(result, config))
+                subprocess.run(["git", "config", "user.email", "maser@akcii.sk"], cwd=SCRIPT_DIR)
+                subprocess.run(["git", "config", "user.name", "Maser v akcii"], cwd=SCRIPT_DIR)
                 subprocess.run(["git", "add", "docs/"], cwd=SCRIPT_DIR, check=True)
                 commit_result = subprocess.run(
                     ["git", "commit", "-m", "Publish schedule to GitHub Pages"],
