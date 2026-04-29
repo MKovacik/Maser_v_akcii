@@ -42,7 +42,8 @@ DEFAULT_EVENTS = [
      "groups": False, "num_groups": 1, "g_starts": [], "g_sizes": []},
     {"name": "Sprievodný program počas súťaže", "start": time(8, 45), "dur": 30, "color": "#D9D9D9",
      "groups": True, "num_groups": 3,
-     "g_starts": [time(8, 45), time(10, 15), time(12, 15)], "g_sizes": [0, 0, 0]},
+     "g_starts": [time(8, 45), time(10, 15), time(12, 15)], "g_sizes": [0, 0, 0],
+     "floating": True, "min_duration": 30, "max_duration": 90},
     {"name": "Obed", "start": time(11, 0), "dur": 30, "color": "#F8CBAD",
      "groups": True, "num_groups": 2,
      "g_starts": [time(11, 0), time(12, 30)], "g_sizes": [6, 5]},
@@ -361,6 +362,9 @@ def build_shared_events():
             num_groups=ev["num_groups"] if ev["groups"] else 1,
             group_starts=group_starts,
             group_sizes=group_sizes,
+            floating=ev.get("floating", False),
+            min_duration=ev.get("min_duration", 0),
+            max_duration=ev.get("max_duration", 0),
         ))
     result.sort(key=lambda e: e.start_time)
     return result
@@ -396,7 +400,9 @@ def schedule_to_json(result, config):
                 {"name": ev.name, "start_time": ev.start_time, "duration": ev.duration,
                  "color_bg": ev.color_bg, "color_text": ev.color_text,
                  "num_groups": ev.num_groups,
-                 "group_starts": ev.group_starts, "group_sizes": ev.group_sizes}
+                 "group_starts": ev.group_starts, "group_sizes": ev.group_sizes,
+                 "floating": ev.floating, "min_duration": ev.min_duration,
+                 "max_duration": ev.max_duration}
                 for ev in config.shared_events],
         },
         "teams": {str(k): v for k, v in result.items()},
@@ -423,7 +429,10 @@ def json_to_schedule(raw):
             color_bg=e["color_bg"], color_text=e["color_text"],
             num_groups=e["num_groups"],
             group_starts=e.get("group_starts", []),
-            group_sizes=e.get("group_sizes", []))
+            group_sizes=e.get("group_sizes", []),
+            floating=e.get("floating", False),
+            min_duration=e.get("min_duration", 0),
+            max_duration=e.get("max_duration", 0))
             for e in cfg["shared_events"]],
     )
     teams = {int(k): v for k, v in data["teams"].items()}
