@@ -5,6 +5,7 @@ from solver import SolverConfig, SharedEvent, Activity, solve, min_to_time
 from export_excel import generate_excel
 from export_html import generate_html
 import os
+import json
 import base64
 
 st.set_page_config(page_title="Masér v akcii – Harmonogram", layout="wide", page_icon="💆")
@@ -340,6 +341,7 @@ with st.sidebar:
 
     st.markdown("---")
     generate = st.button("Generovať harmonogram", type="primary", use_container_width=True)
+    load_published = st.button("Načítať publikovaný", use_container_width=True)
 
 
 def build_shared_events():
@@ -366,6 +368,63 @@ def build_cat_colors(shared_events):
     for ev in shared_events:
         colors[ev.category] = {"bg": ev.color_bg, "text": ev.color_text}
     return colors
+
+
+SCHEDULE_JSON_URL = "https://mkovacik.github.io/Maser_v_akcii/schedule.json"
+
+
+def schedule_to_json(result, config):
+    data = {
+        "config": {
+            "num_teams": config.num_teams,
+            "start_time": config.start_time,
+            "end_time": config.end_time,
+            "transfer_time": config.transfer_time,
+            "masaze_activities": [
+                {"name": a.name, "duration": a.duration, "abbr": a.abbreviation, "category": a.category}
+                for a in config.masaze_activities],
+            "sport_activities": [
+                {"name": a.name, "duration": a.duration, "abbr": a.abbreviation, "category": a.category}
+                for a in config.sport_activities],
+            "test_activities": [
+                {"name": a.name, "duration": a.duration, "abbr": a.abbreviation, "category": a.category}
+                for a in config.test_activities],
+            "shared_events": [
+                {"name": ev.name, "start_time": ev.start_time, "duration": ev.duration,
+                 "color_bg": ev.color_bg, "color_text": ev.color_text,
+                 "num_groups": ev.num_groups,
+                 "group_starts": ev.group_starts, "group_sizes": ev.group_sizes}
+                for ev in config.shared_events],
+        },
+        "teams": {str(k): v for k, v in result.items()},
+    }
+    return json.dumps(data, ensure_ascii=False, indent=2)
+
+
+def json_to_schedule(raw):
+    data = json.loads(raw)
+    cfg = data["config"]
+    config = SolverConfig(
+        num_teams=cfg["num_teams"],
+        start_time=cfg["start_time"],
+        end_time=cfg["end_time"],
+        transfer_time=cfg["transfer_time"],
+        masaze_activities=[Activity(a["name"], a["duration"], a["abbr"], a["category"])
+                          for a in cfg["masaze_activities"]],
+        sport_activities=[Activity(a["name"], a["duration"], a["abbr"], a["category"])
+                         for a in cfg["sport_activities"]],
+        test_activities=[Activity(a["name"], a["duration"], a["abbr"], a["category"])
+                        for a in cfg["test_activities"]],
+        shared_events=[SharedEvent(
+            name=e["name"], start_time=e["start_time"], duration=e["duration"],
+            color_bg=e["color_bg"], color_text=e["color_text"],
+            num_groups=e["num_groups"],
+            group_starts=e.get("group_starts", []),
+            group_sizes=e.get("group_sizes", []))
+            for e in cfg["shared_events"]],
+    )
+    teams = {int(k): v for k, v in data["teams"].items()}
+    return teams, config
 
 
 if generate:
@@ -401,6 +460,18 @@ if generate:
     else:
         st.session_state["schedule"] = result
         st.session_state["config"] = config
+
+if load_published:
+    import urllib.request
+    try:
+        with urllib.request.urlopen(SCHEDULE_JSON_URL, timeout=10) as resp:
+            raw = resp.read().decode("utf-8")
+        teams, config = json_to_schedule(raw)
+        st.session_state["schedule"] = teams
+        st.session_state["config"] = config
+        st.success("Publikovaný harmonogram načítaný!")
+    except Exception as e:
+        st.error(f"Nepodarilo sa načítať harmonogram: {e}")
 
 
 if "schedule" in st.session_state:
@@ -472,7 +543,9 @@ if "schedule" in st.session_state:
                 os.makedirs(docs_dir, exist_ok=True)
                 with open(os.path.join(docs_dir, "index.html"), "w", encoding="utf-8") as f:
                     f.write(html_str)
-                subprocess.run(["git", "add", "docs/index.html"], cwd=SCRIPT_DIR)
+                with open(os.path.join(docs_dir, "schedule.json"), "w", encoding="utf-8") as f:
+                    f.write(schedule_to_json(result, config))
+                subprocess.run(["git", "add", "docs/"], cwd=SCRIPT_DIR)
                 subprocess.run(["git", "commit", "-m", "Publish schedule to GitHub Pages"],
                                cwd=SCRIPT_DIR)
                 subprocess.run(["git", "push"], cwd=SCRIPT_DIR)
