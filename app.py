@@ -542,16 +542,22 @@ if "schedule" in st.session_state:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    dl1, dl2, _ = st.columns([1, 1, 3])
+    dl1, dl2, dl3, _ = st.columns([1, 1, 1, 2])
     with dl1:
         st.download_button(
             label="Stiahnuť Excel", data=excel_bytes,
             file_name="Maser_v_akcii_harmonogram.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="primary", use_container_width=True)
+    with dl2:
+        st.download_button(
+            label="Stiahnuť JSON", data=schedule_to_json(result, config),
+            file_name="harmonogram.json",
+            mime="application/json",
+            use_container_width=True)
     is_local = os.path.isdir(os.path.join(SCRIPT_DIR, ".git"))
     if is_local:
-        with dl2:
+        with dl3:
             if st.button("Publikovať na GitHub Pages", use_container_width=True):
                 import subprocess
                 html_str = generate_html(result, config, logo_path=logo)
