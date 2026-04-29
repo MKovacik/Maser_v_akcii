@@ -158,10 +158,8 @@ def min_to_time(m: int) -> str:
     return f"{m // 60:02d}:{m % 60:02d}"
 
 
-def solve(config: SolverConfig):
-    """Solve the scheduling problem. Returns teams dict (1-indexed) or None if infeasible."""
-    from ortools.sat.python import cp_model
-
+def _build_model(config, cp_model_module, team_group_starts=None):
+    """Build the CP-SAT model. Returns (model, variables dict)."""
     N = config.num_teams
     H = config.start_time
     H_end = config.end_time
@@ -172,7 +170,7 @@ def solve(config: SolverConfig):
     D_test = config.test_duration
     TRANSFER = config.transfer_time
 
-    model = cp_model.CpModel()
+    model = cp_model_module.CpModel()
 
     masaze_start, sport_start, test_start = [], [], []
     masaze_end, sport_end, test_end = [], [], []
@@ -226,14 +224,13 @@ def solve(config: SolverConfig):
         model.add(sport_end[t] + TRANSFER <= test_start[t]).only_enforce_if(b_st)
         model.add(test_end[t] + TRANSFER <= sport_start[t]).only_enforce_if(~b_st)
 
-    # For multi-group events, let the solver choose which group each team attends
-    ev_group_vars = {}  # (ev_idx, t) -> group var
-    ev_start_vars = {}  # (ev_idx, t) -> start int var
+    # Non-floating shared events (e.g. obed)
+    ev_group_vars = {}
+    ev_start_vars = {}
 
     for ev_idx, ev in enumerate(config.shared_events):
         if not ev.overlaps_window(H, H_end):
             continue
-        # Floating events are not constrained by solver — filled in post-processing
         if ev.floating:
             continue
 
@@ -265,16 +262,13 @@ def solve(config: SolverConfig):
         for ev_idx, ev in enumerate(config.shared_events):
             if not ev.overlaps_window(H, H_end):
                 continue
+            if ev.floating:
+                continue
             if (ev_idx, t) not in ev_start_vars:
                 continue
 
             ev_s = ev_start_vars[(ev_idx, t)]
-            # For floating events, only block min_duration (teams can leave early)
-            ev_dur = ev.min_duration if ev.floating else ev.duration
-
-            # Floating events have no solver constraints — they fill gaps in output
-            if ev.floating:
-                continue
+            ev_dur = ev.duration
 
             if isinstance(ev_s, int):
                 if ev_s >= H_end:
@@ -317,13 +311,11 @@ def solve(config: SolverConfig):
 
                 if isinstance(si, int) and isinstance(sj, int):
                     if si + ev_i.duration > sj and sj + ev_j.duration > si:
-                        return None
+                        return None, None
                 elif isinstance(si, int):
-                    # si fixed, sj variable — for each group of ej, check feasibility
                     g_bools_j = ev_group_vars[(ej, t)]
                     for g in range(ev_j.num_groups):
                         gs_j = ev_j.group_starts[g]
-                        # If overlap between fixed si and this group's time
                         if si + ev_i.duration > gs_j and gs_j + ev_j.duration > si:
                             model.add(g_bools_j[g] == 0)
                 elif isinstance(sj, int):
@@ -333,7 +325,6 @@ def solve(config: SolverConfig):
                         if gs_i + ev_i.duration > sj and sj + ev_j.duration > gs_i:
                             model.add(g_bools_i[g] == 0)
                 else:
-                    # Both variable — for each pair of groups, forbid overlapping ones
                     g_bools_i = ev_group_vars[(ei, t)]
                     g_bools_j = ev_group_vars[(ej, t)]
                     for gi in range(ev_i.num_groups):
@@ -342,8 +333,40 @@ def solve(config: SolverConfig):
                             gs_j = ev_j.group_starts[gj]
                             if (gs_i + ev_i.duration > gs_j
                                     and gs_j + ev_j.duration > gs_i):
-                                # These two groups overlap — can't both be chosen
                                 model.add_bool_or([~g_bools_i[gi], ~g_bools_j[gj]])
+
+    variables = {
+        "masaze_start": masaze_start, "sport_start": sport_start, "test_start": test_start,
+        "masaze_end": masaze_end, "sport_end": sport_end, "test_end": test_end,
+        "ev_start_vars": ev_start_vars, "ev_group_vars": ev_group_vars,
+    }
+    return model, variables
+
+
+def solve(config: SolverConfig):
+    """Solve the scheduling problem. Returns teams dict (1-indexed) or None if infeasible."""
+    from ortools.sat.python import cp_model
+
+    N = config.num_teams
+    H = config.start_time
+    H_end = config.end_time
+
+    # Identify floating events and their feasible group_starts
+    floating_events = [ev for ev in config.shared_events if ev.floating]
+
+    # Pass 1: minimize makespan
+    model, variables = _build_model(config, cp_model)
+    if model is None:
+        return None
+
+    masaze_start = variables["masaze_start"]
+    sport_start = variables["sport_start"]
+    test_start = variables["test_start"]
+    masaze_end = variables["masaze_end"]
+    sport_end = variables["sport_end"]
+    test_end = variables["test_end"]
+    ev_start_vars = variables["ev_start_vars"]
+    ev_group_vars = variables["ev_group_vars"]
 
     makespan = model.new_int_var(H, H_end, "makespan")
     for t in range(N):
@@ -353,31 +376,109 @@ def solve(config: SolverConfig):
     model.minimize(makespan)
 
     solver = cp_model.CpSolver()
-    solver.parameters.max_time_in_seconds = 30
+    solver.parameters.max_time_in_seconds = 10
     status = solver.solve(model)
 
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return None
 
+    optimal_makespan = solver.value(makespan)
+
+    # Pass 2: fix makespan, maximize sprievodný program time
+    # Solver assigns each team to a floating group and pushes first activity later
+    model2, variables2 = _build_model(config, cp_model)
+    if model2 is None:
+        return None
+
+    masaze_start = variables2["masaze_start"]
+    sport_start = variables2["sport_start"]
+    test_start = variables2["test_start"]
+    masaze_end = variables2["masaze_end"]
+    sport_end = variables2["sport_end"]
+    test_end = variables2["test_end"]
+    ev_start_vars = variables2["ev_start_vars"]
+    ev_group_vars = variables2["ev_group_vars"]
+
+    # Fix makespan
+    for t in range(N):
+        model2.add(masaze_end[t] <= optimal_makespan)
+        model2.add(sport_end[t] <= optimal_makespan)
+        model2.add(test_end[t] <= optimal_makespan)
+
+    # For each floating event, let solver assign teams to groups freely
+    # and maximize (first_activity - group_start) capped at max_duration
+    float_group_bools = {}  # (ev, t) -> list of bool vars
+    float_group_start_vars = {}  # (ev, t) -> int var for assigned group_start
+
+    total_spriev = 0
+    for ev in floating_events:
+        starts = sorted(ev.group_starts) if ev.group_starts else [ev.start_time]
+        num_g = len(starts)
+
+        for t in range(N):
+            # Bool var per group
+            g_bools = [model2.new_bool_var(f"float_{ev.name}_{t}_g{g}") for g in range(num_g)]
+            model2.add_exactly_one(g_bools)
+            float_group_bools[(id(ev), t)] = g_bools
+
+            # Group start var
+            gs_var = model2.new_int_var(min(starts), max(starts), f"float_gs_{ev.name}_{t}")
+            for g in range(num_g):
+                model2.add(gs_var == starts[g]).only_enforce_if(g_bools[g])
+            float_group_start_vars[(id(ev), t)] = gs_var
+
+            # first_activity for this team
+            first_act = model2.new_int_var(H, H_end, f"first_act_{t}")
+            model2.add(first_act <= masaze_start[t])
+            model2.add(first_act <= sport_start[t])
+            model2.add(first_act <= test_start[t])
+
+            # spriev_duration = min(first_act - gs, max_duration), capped
+            spriev_dur = model2.new_int_var(0, ev.max_duration, f"spriev_dur_{t}")
+            model2.add(spriev_dur <= first_act - gs_var)
+            model2.add(spriev_dur <= ev.max_duration)
+
+            total_spriev += spriev_dur
+
+    model2.maximize(total_spriev)
+
+    solver2 = cp_model.CpSolver()
+    solver2.parameters.max_time_in_seconds = 10
+    status2 = solver2.solve(model2)
+
+    if status2 not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        # Fallback to pass 1 result — no sprievodný optimization
+        solver2 = solver
+        masaze_start = variables["masaze_start"]
+        sport_start = variables["sport_start"]
+        test_start = variables["test_start"]
+        masaze_end = variables["masaze_end"]
+        sport_end = variables["sport_end"]
+        test_end = variables["test_end"]
+        ev_start_vars = variables["ev_start_vars"]
+        ev_group_vars = variables["ev_group_vars"]
+        float_group_start_vars = {}
+
+    # Build result
     teams = {}
     for t in range(N):
         entries = []
 
-        ms = solver.value(masaze_start[t])
+        ms = solver2.value(masaze_start[t])
         offset = 0
         for a in config.masaze_activities:
             entries.append((a.name, min_to_time(ms + offset),
                             min_to_time(ms + offset + a.duration), a.category))
             offset += a.duration
 
-        ss = solver.value(sport_start[t])
+        ss = solver2.value(sport_start[t])
         offset = 0
         for a in config.sport_activities:
             entries.append((a.name, min_to_time(ss + offset),
                             min_to_time(ss + offset + a.duration), a.category))
             offset += a.duration
 
-        ts = solver.value(test_start[t])
+        ts = solver2.value(test_start[t])
         for a in config.test_activities:
             entries.append((a.name, min_to_time(ts),
                             min_to_time(ts + a.duration), a.category))
@@ -385,57 +486,55 @@ def solve(config: SolverConfig):
         for ev_idx, ev in enumerate(config.shared_events):
             if ev.floating:
                 continue
-
             if (ev_idx, t) in ev_start_vars:
                 ev_s = ev_start_vars[(ev_idx, t)]
                 if isinstance(ev_s, int):
                     es = ev_s
                 else:
-                    es = solver.value(ev_s)
+                    es = solver2.value(ev_s)
             else:
                 es = ev.get_start_for_team(t, N)
             ee = es + ev.duration
             entries.append((ev.name, min_to_time(es), min_to_time(ee), ev.category))
 
-        entries.sort(key=lambda x: x[1])
-
-        # Post-processing: fill largest gap with floating sprievodný program
-        for ev in config.shared_events:
-            if not ev.floating:
-                continue
-            starts = sorted(ev.group_starts) if ev.group_starts else [ev.start_time]
-            # Find gaps between consecutive entries (within competition window)
-            comp_entries = [(int(s[:2])*60+int(s[3:]), int(e[:2])*60+int(e[3:]))
-                           for _, s, e, c in entries
-                           if int(s[:2])*60+int(s[3:]) >= H]
-            comp_entries.sort()
-            # Also consider gap from competition start to first entry
-            gaps = []
-            if comp_entries:
-                if comp_entries[0][0] > H:
+        # Post-processing: add floating sprievodný program
+        for ev in floating_events:
+            if (id(ev), t) in float_group_start_vars:
+                gs = solver2.value(float_group_start_vars[(id(ev), t)])
+            else:
+                gs = ev.start_time
+            first_act = min(solver2.value(masaze_start[t]),
+                            solver2.value(sport_start[t]),
+                            solver2.value(test_start[t]))
+            ee = min(first_act, gs + ev.max_duration)
+            if ee - gs >= ev.min_duration:
+                entries.append((ev.name, min_to_time(gs), min_to_time(ee), ev.category))
+            else:
+                # Fallback: find largest gap and place sprievodný there
+                comp_entries = [(int(s[:2])*60+int(s[3:]), int(e[:2])*60+int(e[3:]))
+                               for _, s, e, _ in entries]
+                comp_entries.sort()
+                gaps = []
+                if comp_entries and comp_entries[0][0] > H:
                     gaps.append((H, comp_entries[0][0]))
                 for i in range(len(comp_entries) - 1):
-                    gap_start = comp_entries[i][1]
-                    gap_end = comp_entries[i + 1][0]
-                    if gap_end - gap_start > 0:
-                        gaps.append((gap_start, gap_end))
+                    gap_s = comp_entries[i][1]
+                    gap_e = comp_entries[i + 1][0]
+                    if gap_e - gap_s > 0:
+                        gaps.append((gap_s, gap_e))
+                # Find largest gap >= min_duration
+                best = None
+                best_dur = 0
+                for gap_s, gap_e in gaps:
+                    avail = min(gap_e - gap_s, ev.max_duration)
+                    if avail >= ev.min_duration and avail > best_dur:
+                        best = (gap_s, gap_s + avail)
+                        best_dur = avail
+                if best:
+                    entries.append((ev.name, min_to_time(best[0]),
+                                    min_to_time(best[1]), ev.category))
 
-            # Find best gap: largest one that contains a group_start
-            best = None
-            best_dur = 0
-            for gap_s, gap_e in gaps:
-                for gs in starts:
-                    # group_start must fall within gap
-                    if gs >= gap_s and gs < gap_e:
-                        avail = min(gap_e - gs, ev.max_duration)
-                        if avail >= ev.min_duration and avail > best_dur:
-                            best = (gs, gs + avail)
-                            best_dur = avail
-            if best:
-                entries.append((ev.name, min_to_time(best[0]),
-                                min_to_time(best[1]), ev.category))
-                entries.sort(key=lambda x: x[1])
-
+        entries.sort(key=lambda x: x[1])
         teams[t + 1] = entries
 
     return teams
