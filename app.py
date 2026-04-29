@@ -542,7 +542,7 @@ if "schedule" in st.session_state:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    dl1, dl2, dl3, _ = st.columns([1, 1, 1, 2])
+    dl1, dl2, _ = st.columns([1, 1, 3])
     with dl1:
         st.download_button(
             label="Stiahnuť Excel", data=excel_bytes,
@@ -555,33 +555,6 @@ if "schedule" in st.session_state:
             file_name="harmonogram.json",
             mime="application/json",
             use_container_width=True)
-    is_local = os.path.isdir(os.path.join(SCRIPT_DIR, ".git"))
-    if is_local:
-        with dl3:
-            if st.button("Publikovať na GitHub Pages", use_container_width=True):
-                import subprocess
-                html_str = generate_html(result, config, logo_path=logo)
-                docs_dir = os.path.join(SCRIPT_DIR, "docs")
-                os.makedirs(docs_dir, exist_ok=True)
-                with open(os.path.join(docs_dir, "index.html"), "w", encoding="utf-8") as f:
-                    f.write(html_str)
-                with open(os.path.join(docs_dir, "schedule.json"), "w", encoding="utf-8") as f:
-                    f.write(schedule_to_json(result, config))
-                subprocess.run(["git", "config", "user.email", "maser@akcii.sk"], cwd=SCRIPT_DIR)
-                subprocess.run(["git", "config", "user.name", "Maser v akcii"], cwd=SCRIPT_DIR)
-                subprocess.run(["git", "add", "docs/"], cwd=SCRIPT_DIR, check=True)
-                commit_result = subprocess.run(
-                    ["git", "commit", "-m", "Publish schedule to GitHub Pages"],
-                    cwd=SCRIPT_DIR, capture_output=True, text=True)
-                if commit_result.returncode != 0 and "nothing to commit" not in commit_result.stdout:
-                    st.error(f"Git commit zlyhal: {commit_result.stderr}")
-                else:
-                    push_result = subprocess.run(
-                        ["git", "push"], cwd=SCRIPT_DIR, capture_output=True, text=True)
-                    if push_result.returncode != 0:
-                        st.error(f"Git push zlyhal: {push_result.stderr}")
-                    else:
-                        st.success("Harmonogram publikovaný na GitHub Pages!")
 
     legend_html = '<div style="margin: 8px 0 20px 0;">'
     for a in config.masaze_activities:
