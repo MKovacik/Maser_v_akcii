@@ -567,11 +567,19 @@ if "schedule" in st.session_state:
                     f.write(html_str)
                 with open(os.path.join(docs_dir, "schedule.json"), "w", encoding="utf-8") as f:
                     f.write(schedule_to_json(result, config))
-                subprocess.run(["git", "add", "docs/"], cwd=SCRIPT_DIR)
-                subprocess.run(["git", "commit", "-m", "Publish schedule to GitHub Pages"],
-                               cwd=SCRIPT_DIR)
-                subprocess.run(["git", "push"], cwd=SCRIPT_DIR)
-                st.success("Harmonogram publikovaný na GitHub Pages!")
+                subprocess.run(["git", "add", "docs/"], cwd=SCRIPT_DIR, check=True)
+                commit_result = subprocess.run(
+                    ["git", "commit", "-m", "Publish schedule to GitHub Pages"],
+                    cwd=SCRIPT_DIR, capture_output=True, text=True)
+                if commit_result.returncode != 0 and "nothing to commit" not in commit_result.stdout:
+                    st.error(f"Git commit zlyhal: {commit_result.stderr}")
+                else:
+                    push_result = subprocess.run(
+                        ["git", "push"], cwd=SCRIPT_DIR, capture_output=True, text=True)
+                    if push_result.returncode != 0:
+                        st.error(f"Git push zlyhal: {push_result.stderr}")
+                    else:
+                        st.success("Harmonogram publikovaný na GitHub Pages!")
 
     legend_html = '<div style="margin: 8px 0 20px 0;">'
     for a in config.masaze_activities:
