@@ -397,7 +397,7 @@ def _build_teams(result, config, cat_colors):
                     if loc_url:
                         loc_html = f'<a href="{loc_url}" target="_blank" style="text-decoration:none;font-size:1.2rem" title="{_esc(loc_name)}">🗺️</a>'
                     else:
-                        loc_html = f'<span title="{_esc(loc_name)}" style="font-size:1.2rem">📌</span>'
+                        loc_html = f'<span title="{_esc(loc_name)}" style="font-size:1.2rem">📌</span> {_esc(loc_name)}'
                 h += f'<tr style="background:{c["bg"]}20">'
                 h += f'<td>{_cat_badge(agg_name, "sport", cat_colors)}</td>'
                 h += f'<td style="text-align:center;font-weight:500">{s_agg} – {e_agg}</td>'
@@ -415,9 +415,9 @@ def _build_teams(result, config, cat_colors):
             if loc:
                 loc_name, loc_url = loc
                 if loc_url:
-                    loc_html = f'<a href="{loc_url}" target="_blank">📍</a>'
+                    loc_html = f'<a href="{loc_url}" target="_blank" style="text-decoration:none;font-size:1.2rem" title="{_esc(loc_name)}">🗺️</a>'
                 else:
-                    loc_html = '📍'
+                    loc_html = f'<span title="{_esc(loc_name)}" style="font-size:1.2rem">📌</span> {_esc(loc_name)}'
             h += f'<tr style="background:{c["bg"]}20">'
             h += f'<td>{_cat_badge(name, cat, cat_colors)}</td>'
             h += f'<td style="text-align:center;font-weight:500">{s} – {e}</td>'
