@@ -307,6 +307,29 @@ def _build_timeline(result, config, cat_colors):
     return h
 
 
+LOCATIONS = {
+    "penzion": ("Penzión Caritas", "https://maps.app.goo.gl/sENaEQZJPAaJ1UnGA"),
+    "telocvicna": ("Telocvičňa ZŠ", "https://maps.app.goo.gl/HDrK14GR3YWGzaSi9"),
+    "luka": ("Lúka pri penzióne", None),
+    "nu_det": ("NU det.", "https://maps.app.goo.gl/uwV61BvNtRrNoKoJ7"),
+}
+
+
+def _get_location(name, cat):
+    if cat in ("klas", "free", "test"):
+        return LOCATIONS["penzion"]
+    if cat == "sport":
+        return LOCATIONS["telocvicna"]
+    if cat == "presun":
+        return None
+    lower = name.lower()
+    if "vojaci" in lower or "samarit" in lower:
+        return LOCATIONS["luka"]
+    if "nu det" in lower:
+        return LOCATIONS["nu_det"]
+    return LOCATIONS["penzion"]
+
+
 def _build_teams(result, config, cat_colors):
     shared_names = {ev.name for ev in config.shared_events}
 
@@ -350,7 +373,7 @@ def _build_teams(result, config, cat_colors):
         display = 'block' if t_id == 1 else 'none'
         h += f'<div class="team-panel" id="team-{t_id}" style="display:{display}">'
         h += '<table class="team-table"><thead><tr>'
-        for hdr in ["Aktivita", "Čas", "Trvanie", "Poznámka"]:
+        for hdr in ["Aktivita", "Čas", "Trvanie", "Miesto", "Poznámka"]:
             h += f"<th>{_esc(hdr)}</th>"
         h += "</tr></thead><tbody>"
 
@@ -367,10 +390,19 @@ def _build_teams(result, config, cat_colors):
                 dur = time_to_min(e_agg) - time_to_min(s_agg)
                 agg_name = "Športové disciplíny (telocvičňa ZŠ)"
                 c = cat_colors.get("sport", {"bg": "#eee", "text": "#333"})
+                loc = _get_location(agg_name, "sport")
+                loc_html = ""
+                if loc:
+                    loc_name, loc_url = loc
+                    if loc_url:
+                        loc_html = f'<a href="{loc_url}" target="_blank">📍 {_esc(loc_name)}</a>'
+                    else:
+                        loc_html = f'📍 {_esc(loc_name)}'
                 h += f'<tr style="background:{c["bg"]}20">'
                 h += f'<td>{_cat_badge(agg_name, "sport", cat_colors)}</td>'
                 h += f'<td style="text-align:center;font-weight:500">{s_agg} – {e_agg}</td>'
                 h += f'<td style="text-align:center">{dur} min</td>'
+                h += f'<td style="text-align:center">{loc_html}</td>'
                 h += f'<td></td>'
                 h += "</tr>"
                 continue
@@ -378,10 +410,19 @@ def _build_teams(result, config, cat_colors):
             dur = time_to_min(e) - time_to_min(s)
             c = cat_colors.get(cat, {"bg": "#eee", "text": "#333"})
             note = group_notes.get(name, "")
+            loc = _get_location(name, cat)
+            loc_html = ""
+            if loc:
+                loc_name, loc_url = loc
+                if loc_url:
+                    loc_html = f'<a href="{loc_url}" target="_blank">📍 {_esc(loc_name)}</a>'
+                else:
+                    loc_html = f'📍 {_esc(loc_name)}'
             h += f'<tr style="background:{c["bg"]}20">'
             h += f'<td>{_cat_badge(name, cat, cat_colors)}</td>'
             h += f'<td style="text-align:center;font-weight:500">{s} – {e}</td>'
             h += f'<td style="text-align:center">{dur} min</td>'
+            h += f'<td style="text-align:center">{loc_html}</td>'
             h += f'<td>{_esc(note)}</td>'
             h += "</tr>"
 
