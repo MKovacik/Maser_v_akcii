@@ -317,7 +317,7 @@ with st.sidebar:
             if ev["groups"]:
                 ev["num_groups"] = st.number_input(
                     "Počet skupín", min_value=2, max_value=5,
-                    value=ev.get("num_groups", 2), key=f"ev_ng_{i}")
+                    value=max(2, ev.get("num_groups", 2)), key=f"ev_ng_{i}")
                 while len(ev["g_starts"]) < ev["num_groups"]:
                     ev["g_starts"].append(ev["start"])
                 while len(ev["g_sizes"]) < ev["num_groups"]:
