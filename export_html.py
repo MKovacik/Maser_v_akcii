@@ -354,7 +354,27 @@ def _build_teams(result, config, cat_colors):
             h += f"<th>{_esc(hdr)}</th>"
         h += "</tr></thead><tbody>"
 
+        sport_entries = [(s, e) for name, s, e, cat in entries_with_transfers if cat == "sport"]
+        sport_rendered = False
+
         for name, s, e, cat in entries_with_transfers:
+            if cat == "sport":
+                if sport_rendered:
+                    continue
+                sport_rendered = True
+                s_agg = sport_entries[0][0]
+                e_agg = sport_entries[-1][1]
+                dur = time_to_min(e_agg) - time_to_min(s_agg)
+                agg_name = "Športové disciplíny (telocvičňa ZŠ)"
+                c = cat_colors.get("sport", {"bg": "#eee", "text": "#333"})
+                h += f'<tr style="background:{c["bg"]}20">'
+                h += f'<td>{_cat_badge(agg_name, "sport", cat_colors)}</td>'
+                h += f'<td style="text-align:center;font-weight:500">{s_agg} – {e_agg}</td>'
+                h += f'<td style="text-align:center">{dur} min</td>'
+                h += f'<td></td>'
+                h += "</tr>"
+                continue
+
             dur = time_to_min(e) - time_to_min(s)
             c = cat_colors.get(cat, {"bg": "#eee", "text": "#333"})
             note = group_notes.get(name, "")
