@@ -4,7 +4,7 @@ Generátor harmonogramu pre súťaž "Masér v akcii". Aplikácia automaticky ro
 
 ## Odkazy
 
-- **Aplikácia (Streamlit Cloud):** https://maservakcii.streamlit.app
+- **Aplikácia (Streamlit Cloud):** https://maservakcii-kh4ecwq688xkwvq2pfs78e.streamlit.app/
 - **Publikovaný harmonogram (GitHub Pages):** https://mkovacik.github.io/Maser_v_akcii/
 - **Repozitár:** https://github.com/MKovacik/Maser_v_akcii
 
