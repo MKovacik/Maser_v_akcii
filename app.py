@@ -289,6 +289,7 @@ with st.sidebar:
     st.markdown("**Spoločné udalosti**")
 
     events = st.session_state["shared_events"]
+    events.sort(key=lambda e: e["start"])
 
     to_delete = None
     for i, ev in enumerate(events):
@@ -352,6 +353,7 @@ with st.sidebar:
             "color": "#D9D9D9", "groups": False, "num_groups": 1,
             "g_starts": [], "g_sizes": [],
         })
+        st.session_state["shared_events"].sort(key=lambda e: e["start"])
         st.rerun()
 
     st.markdown("---")
