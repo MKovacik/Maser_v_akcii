@@ -373,7 +373,7 @@ def _build_teams(result, config, cat_colors):
         display = 'block' if t_id == 1 else 'none'
         h += f'<div class="team-panel" id="team-{t_id}" style="display:{display}">'
         h += '<table class="team-table"><thead><tr>'
-        for hdr in ["Aktivita", "Čas", "Trvanie", "📍", "Poznámka"]:
+        for hdr in ["Aktivita", "Čas", "Trvanie", "Poznámka", "Lokácia"]:
             h += f"<th>{_esc(hdr)}</th>"
         h += "</tr></thead><tbody>"
 
@@ -395,15 +395,15 @@ def _build_teams(result, config, cat_colors):
                 if loc:
                     loc_name, loc_url = loc
                     if loc_url:
-                        loc_html = f'<a href="{loc_url}" target="_blank">📍</a>'
+                        loc_html = f'<a href="{loc_url}" target="_blank" style="text-decoration:none;font-size:1.2rem" title="{_esc(loc_name)}">🗺️</a>'
                     else:
-                        loc_html = '📍'
+                        loc_html = f'<span title="{_esc(loc_name)}" style="font-size:1.2rem">📌</span>'
                 h += f'<tr style="background:{c["bg"]}20">'
                 h += f'<td>{_cat_badge(agg_name, "sport", cat_colors)}</td>'
                 h += f'<td style="text-align:center;font-weight:500">{s_agg} – {e_agg}</td>'
                 h += f'<td style="text-align:center">{dur} min</td>'
-                h += f'<td style="text-align:center">{loc_html}</td>'
                 h += f'<td></td>'
+                h += f'<td style="text-align:center">{loc_html}</td>'
                 h += "</tr>"
                 continue
 
@@ -422,8 +422,8 @@ def _build_teams(result, config, cat_colors):
             h += f'<td>{_cat_badge(name, cat, cat_colors)}</td>'
             h += f'<td style="text-align:center;font-weight:500">{s} – {e}</td>'
             h += f'<td style="text-align:center">{dur} min</td>'
-            h += f'<td style="text-align:center">{loc_html}</td>'
             h += f'<td>{_esc(note)}</td>'
+            h += f'<td style="text-align:center">{loc_html}</td>'
             h += "</tr>"
 
         h += "</tbody></table></div>"
