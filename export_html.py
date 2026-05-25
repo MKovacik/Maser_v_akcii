@@ -65,13 +65,12 @@ input[name="tabs"] { display: none; }
 .timeline-table tbody td.time-col { font-weight: 600; background: #f0f4f8;
   padding: 4px 6px; color: #333; min-width: 50px; }
 
-details { margin-bottom: 8px; }
-details summary { background: #1F4E79; color: white; padding: 10px 16px; border-radius: 8px;
-  cursor: pointer; font-weight: 600; font-size: 1rem; list-style: none; }
-details summary::-webkit-details-marker { display: none; }
-details summary::before { content: "\\25B6  "; font-size: 0.7rem; }
-details[open] summary::before { content: "\\25BC  "; }
-details[open] summary { border-radius: 8px 8px 0 0; }
+.team-selector { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.team-chip { padding: 8px 16px; border-radius: 20px; border: 2px solid #1F4E79;
+  background: white; color: #1F4E79; font-weight: 600; font-size: 0.9rem;
+  cursor: pointer; transition: all 0.2s; }
+.team-chip:hover { background: #e8f0fa; }
+.team-chip.active { background: #1F4E79; color: white; }
 
 .team-table { width: 100%; border-collapse: collapse; font-size: 0.9rem;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
@@ -323,7 +322,14 @@ def _build_teams(result, config, cat_colors):
     during_events = [ev for ev in config.shared_events
                      if ev.overlaps_window(config.start_time, config.end_time)]
 
-    parts = []
+    # Team selector chips
+    h = '<div class="team-selector">'
+    for t_id in sorted(result.keys()):
+        active = ' active' if t_id == 1 else ''
+        h += (f'<button class="team-chip{active}" '
+              f'onclick="selectTeam({t_id})" id="chip-{t_id}">Team {t_id}</button>')
+    h += '</div>'
+
     for t_id in sorted(result.keys()):
         schedule = result[t_id]
         entries_with_transfers = add_transfers(schedule, shared_names, station_lookup)
@@ -341,7 +347,8 @@ def _build_teams(result, config, cat_colors):
                         group_notes[ev.name] = f"{g+1}. skupina (tímy {start_team}–{end_team})"
                         break
 
-        h = f'<details><summary>Team {t_id}</summary>'
+        display = 'block' if t_id == 1 else 'none'
+        h += f'<div class="team-panel" id="team-{t_id}" style="display:{display}">'
         h += '<table class="team-table"><thead><tr>'
         for hdr in ["Aktivita", "Čas", "Trvanie", "Poznámka"]:
             h += f"<th>{_esc(hdr)}</th>"
@@ -358,10 +365,18 @@ def _build_teams(result, config, cat_colors):
             h += f'<td>{_esc(note)}</td>'
             h += "</tr>"
 
-        h += "</tbody></table></details>"
-        parts.append(h)
+        h += "</tbody></table></div>"
 
-    return "\n".join(parts)
+    h += """<script>
+function selectTeam(id) {
+  document.querySelectorAll('.team-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.team-chip').forEach(c => c.classList.remove('active'));
+  document.getElementById('team-' + id).style.display = 'block';
+  document.getElementById('chip-' + id).classList.add('active');
+}
+</script>"""
+
+    return h
 
 
 def generate_html(teams, config, logo_path=None):
