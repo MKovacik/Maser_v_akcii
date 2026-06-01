@@ -487,36 +487,71 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
     ]
 
     FILL_SCHOOL = PatternFill("solid", fgColor="D6E4F0")
+    FONT_SMALL = Font(name="Calibri", size=9)
+    FONT_SMALL_BOLD = Font(name="Calibri", size=9, bold=True)
 
     for sport in SPORT_SHEETS:
         ws_s = wb.create_sheet(title=sport["title"])
 
         # Title
-        ws_s.merge_cells("A1:F1")
+        num_cols = len(["Škola", "Člen"] + sport["columns"])
+        last_col = get_column_letter(num_cols)
+        ws_s.merge_cells(f"A1:{last_col}1")
         c = ws_s.cell(row=1, column=1)
         c.value = f"MASÉR V AKCII – {sport['title']}"
-        c.font = Font(name="Calibri", size=16, bold=True, color="1F4E79")
+        c.font = Font(name="Calibri", size=14, bold=True, color="1F4E79")
         c.alignment = ALIGN_CENTER
-        ws_s.row_dimensions[1].height = 30
+        ws_s.row_dimensions[1].height = 22
+
+        # Scoring table first (at top, so it's visible when filling in)
+        row = 3
+        if sport.get("scoring_table"):
+            st = sport["scoring_table"]
+            for ci, hdr in enumerate(st["headers"], 1):
+                cell = ws_s.cell(row=row, column=ci, value=hdr)
+                cell.font = FONT_SMALL_BOLD
+                cell.fill = FILL_HEADER
+                cell.font = Font(name="Calibri", size=9, bold=True, color="FFFFFF")
+                cell.alignment = ALIGN_CENTER
+                cell.border = THIN_BORDER
+            row += 1
+            for data_row in st["rows"]:
+                for ci, val in enumerate(data_row, 1):
+                    cell = ws_s.cell(row=row, column=ci, value=val)
+                    cell.font = FONT_SMALL
+                    cell.alignment = ALIGN_CENTER
+                    cell.border = THIN_BORDER
+                    if ci == 1:
+                        cell.font = FONT_SMALL_BOLD
+                        cell.alignment = ALIGN_LEFT
+                ws_s.row_dimensions[row].height = 15
+                row += 1
+            row += 1
+        else:
+            for line in sport["legend"]:
+                ws_s.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
+                ws_s.cell(row=row, column=1, value=line).font = FONT_SMALL
+                ws_s.cell(row=row, column=1).alignment = ALIGN_LEFT
+                ws_s.row_dimensions[row].height = 14
+                row += 1
+            row += 1
 
         # Table header
-        row = 3
         headers = ["Škola", "Člen"] + sport["columns"]
         for ci, hdr in enumerate(headers, 1):
             cell = ws_s.cell(row=row, column=ci, value=hdr)
-            cell.font = FONT_HEADER
+            cell.font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
             cell.fill = FILL_HEADER
             cell.alignment = ALIGN_CENTER
             cell.border = THIN_BORDER
-        ws_s.row_dimensions[row].height = ROW_HEIGHT_HEADER
+        ws_s.row_dimensions[row].height = 18
         row += 1
 
-        # Data rows: each school has 2 members + subtotal row
+        # Data rows
         for school in SCHOOLS:
-            # Member 1
             ws_s.merge_cells(start_row=row, start_column=1, end_row=row + 1, end_column=1)
             cell = ws_s.cell(row=row, column=1, value=school)
-            cell.font = FONT_BOLD
+            cell.font = FONT_SMALL_BOLD
             cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
             cell.border = THIN_BORDER
             cell.fill = FILL_SCHOOL
@@ -525,23 +560,20 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
 
             for member in range(sport["members"]):
                 r = row + member
-                ws_s.cell(row=r, column=2, value=f"Člen {member + 1}").font = FONT_NORMAL
+                ws_s.cell(row=r, column=2, value=f"Člen {member + 1}").font = FONT_SMALL
                 ws_s.cell(row=r, column=2).alignment = ALIGN_CENTER
                 ws_s.cell(row=r, column=2).border = THIN_BORDER
-                # Empty cells for scoring
                 for ci in range(3, len(headers) + 1):
                     cell = ws_s.cell(row=r, column=ci)
                     cell.border = THIN_BORDER
                     cell.alignment = ALIGN_CENTER
-                    cell.font = FONT_NORMAL
-                ws_s.row_dimensions[r].height = 28
+                ws_s.row_dimensions[r].height = 20
 
             # Team total row
             r = row + sport["members"]
-            ws_s.cell(row=r, column=1).border = THIN_BORDER
             ws_s.merge_cells(start_row=r, start_column=1, end_row=r, end_column=len(headers) - 1)
-            cell = ws_s.cell(row=r, column=1, value=f"Spolu za tím")
-            cell.font = FONT_BOLD
+            cell = ws_s.cell(row=r, column=1, value="Spolu za tím")
+            cell.font = FONT_SMALL_BOLD
             cell.alignment = Alignment(horizontal="right", vertical="center")
             cell.border = THIN_BORDER
             for ci in range(2, len(headers) + 1):
@@ -549,61 +581,28 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
             total_cell = ws_s.cell(row=r, column=len(headers))
             total_cell.border = THIN_BORDER
             total_cell.alignment = ALIGN_CENTER
-            total_cell.font = FONT_BOLD
-            ws_s.row_dimensions[r].height = 24
+            total_cell.font = FONT_SMALL_BOLD
+            ws_s.row_dimensions[r].height = 16
 
             row += sport["members"] + 1
 
-        # Legend / scoring rules
-        row += 2
-        ws_s.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(headers))
-        ws_s.cell(row=row, column=1, value="Bodovanie:").font = FONT_BOLD
-        row += 1
-        for line in sport["legend"]:
-            ws_s.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(headers))
-            ws_s.cell(row=row, column=1, value=line).font = FONT_NORMAL
-            ws_s.cell(row=row, column=1).alignment = ALIGN_LEFT
-            row += 1
-
-        # Scoring table (if defined)
-        if sport.get("scoring_table"):
-            st = sport["scoring_table"]
-            row += 1
-            for ci, hdr in enumerate(st["headers"], 1):
-                cell = ws_s.cell(row=row, column=ci, value=hdr)
-                cell.font = FONT_HEADER
-                cell.fill = FILL_HEADER
-                cell.alignment = ALIGN_CENTER
-                cell.border = THIN_BORDER
-            row += 1
-            for data_row in st["rows"]:
-                for ci, val in enumerate(data_row, 1):
-                    cell = ws_s.cell(row=row, column=ci, value=val)
-                    cell.font = FONT_NORMAL
-                    cell.alignment = ALIGN_CENTER
-                    cell.border = THIN_BORDER
-                    if ci == 1:
-                        cell.font = FONT_BOLD
-                        cell.alignment = ALIGN_LEFT
-                row += 1
-
         # Column widths
-        ws_s.column_dimensions["A"].width = 24
-        ws_s.column_dimensions["B"].width = 10
+        ws_s.column_dimensions["A"].width = 22
+        ws_s.column_dimensions["B"].width = 8
         for ci in range(3, len(headers) + 1):
-            ws_s.column_dimensions[get_column_letter(ci)].width = 14
+            ws_s.column_dimensions[get_column_letter(ci)].width = 12
 
-        # Print setup
+        # Print setup — landscape A4, fit to 1 page
         ws_s.sheet_properties.pageSetUpPr = openpyxl.worksheet.properties.PageSetupProperties(
             fitToPage=True)
         ws_s.page_setup.fitToWidth = 1
         ws_s.page_setup.fitToHeight = 1
-        ws_s.page_setup.orientation = "portrait"
+        ws_s.page_setup.orientation = "landscape"
         ws_s.page_setup.paperSize = ws_s.PAPERSIZE_A4
-        ws_s.page_margins.left = 0.5
-        ws_s.page_margins.right = 0.5
-        ws_s.page_margins.top = 0.4
-        ws_s.page_margins.bottom = 0.4
+        ws_s.page_margins.left = 0.4
+        ws_s.page_margins.right = 0.4
+        ws_s.page_margins.top = 0.3
+        ws_s.page_margins.bottom = 0.3
 
     # ═══ TEST SCORING SHEET ═══
     ws_test = wb.create_sheet(title="Test")
