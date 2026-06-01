@@ -440,36 +440,49 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
                 "Zásah cieľa = 1 bod, mimo = 0 bodov.",
                 "Max. 5 bodov na člena, max. 10 bodov za tím.",
             ],
+            "scoring_table": None,
         },
         {
             "title": "Beh na 50m",
             "members": 2,
             "max_per_member": 5,
             "columns": ["Čas (s)", "Body"],
-            "legend": [
-                "CHLAPCI: 9,0s a viac = 1b | 8,6–8,9s = 2b | 8,1–8,5s = 3b | 7,7–8,0s = 4b | 7,6s a menej = 5b",
-                "DIEVČATÁ: 10,0s a viac = 1b | 9,5–9,9s = 2b | 8,9–9,4s = 3b | 8,4–8,8s = 4b | 8,3s a menej = 5b",
-            ],
+            "legend": ["Čím kratší čas, tým viac bodov. Max. 5 bodov na člena, max. 10 za tím."],
+            "scoring_table": {
+                "headers": ["Body", "1b", "2b", "3b", "4b", "5b"],
+                "rows": [
+                    ["Chlapci", "9,0s a viac", "8,6–8,9s", "8,1–8,5s", "7,7–8,0s", "7,6s a menej"],
+                    ["Dievčatá", "10,0s a viac", "9,5–9,9s", "8,9–9,4s", "8,4–8,8s", "8,3s a menej"],
+                ],
+            },
         },
         {
             "title": "Hod medicinbalom",
             "members": 2,
             "max_per_member": 5,
             "columns": ["Vzdialenosť (m)", "Body"],
-            "legend": [
-                "CHLAPCI: 6,0m a menej = 1b | 6,01–7,5m = 2b | 7,51–9,0m = 3b | 9,01–10,5m = 4b | 10,51m a viac = 5b",
-                "DIEVČATÁ: 4,5m a menej = 1b | 4,51–5,8m = 2b | 5,81–7,0m = 3b | 7,01–8,3m = 4b | 8,31m a viac = 5b",
-            ],
+            "legend": ["Čím dlhší hod, tým viac bodov. Max. 5 bodov na člena, max. 10 za tím."],
+            "scoring_table": {
+                "headers": ["Body", "1b", "2b", "3b", "4b", "5b"],
+                "rows": [
+                    ["Chlapci", "6,0m a menej", "6,01–7,5m", "7,51–9,0m", "9,01–10,5m", "10,51m a viac"],
+                    ["Dievčatá", "4,5m a menej", "4,51–5,8m", "5,81–7,0m", "7,01–8,3m", "8,31m a viac"],
+                ],
+            },
         },
         {
             "title": "Ľah-sed",
             "members": 2,
             "max_per_member": 5,
             "columns": ["Počet (za 1 min)", "Body"],
-            "legend": [
-                "CHLAPCI: 25 a menej = 1b | 26–33 = 2b | 34–41 = 3b | 42–49 = 4b | 50 a viac = 5b",
-                "DIEVČATÁ: 20 a menej = 1b | 21–27 = 2b | 28–35 = 3b | 36–43 = 4b | 44 a viac = 5b",
-            ],
+            "legend": ["Čím viac opakovaní za 1 minútu, tým viac bodov. Max. 5 bodov na člena, max. 10 za tím."],
+            "scoring_table": {
+                "headers": ["Body", "1b", "2b", "3b", "4b", "5b"],
+                "rows": [
+                    ["Chlapci", "25 a menej", "26–33", "34–41", "42–49", "50 a viac"],
+                    ["Dievčatá", "20 a menej", "21–27", "28–35", "36–43", "44 a viac"],
+                ],
+            },
         },
     ]
 
@@ -551,6 +564,28 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
             ws_s.cell(row=row, column=1, value=line).font = FONT_NORMAL
             ws_s.cell(row=row, column=1).alignment = ALIGN_LEFT
             row += 1
+
+        # Scoring table (if defined)
+        if sport.get("scoring_table"):
+            st = sport["scoring_table"]
+            row += 1
+            for ci, hdr in enumerate(st["headers"], 1):
+                cell = ws_s.cell(row=row, column=ci, value=hdr)
+                cell.font = FONT_HEADER
+                cell.fill = FILL_HEADER
+                cell.alignment = ALIGN_CENTER
+                cell.border = THIN_BORDER
+            row += 1
+            for data_row in st["rows"]:
+                for ci, val in enumerate(data_row, 1):
+                    cell = ws_s.cell(row=row, column=ci, value=val)
+                    cell.font = FONT_NORMAL
+                    cell.alignment = ALIGN_CENTER
+                    cell.border = THIN_BORDER
+                    if ci == 1:
+                        cell.font = FONT_BOLD
+                        cell.alignment = ALIGN_LEFT
+                row += 1
 
         # Column widths
         ws_s.column_dimensions["A"].width = 24
