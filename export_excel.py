@@ -570,6 +570,51 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
         ws_s.page_margins.top = 0.4
         ws_s.page_margins.bottom = 0.4
 
+    # ═══ TEST SCORING SHEET ═══
+    ws_test = wb.create_sheet(title="Test")
+
+    ws_test.merge_cells("A1:C1")
+    c = ws_test.cell(row=1, column=1)
+    c.value = "MASÉR V AKCII – Test"
+    c.font = Font(name="Calibri", size=16, bold=True, color="1F4E79")
+    c.alignment = ALIGN_CENTER
+    ws_test.row_dimensions[1].height = 30
+
+    row = 3
+    for ci, hdr in enumerate(["Škola", "Body"], 1):
+        cell = ws_test.cell(row=row, column=ci, value=hdr)
+        cell.font = FONT_HEADER
+        cell.fill = FILL_HEADER
+        cell.alignment = ALIGN_CENTER
+        cell.border = THIN_BORDER
+    ws_test.row_dimensions[row].height = ROW_HEIGHT_HEADER
+    row += 1
+
+    for school in SCHOOLS:
+        cell = ws_test.cell(row=row, column=1, value=school)
+        cell.font = FONT_NORMAL
+        cell.alignment = ALIGN_LEFT
+        cell.border = THIN_BORDER
+        cell.fill = FILL_SCHOOL
+        ws_test.cell(row=row, column=2).border = THIN_BORDER
+        ws_test.cell(row=row, column=2).alignment = ALIGN_CENTER
+        ws_test.row_dimensions[row].height = 28
+        row += 1
+
+    ws_test.column_dimensions["A"].width = 28
+    ws_test.column_dimensions["B"].width = 14
+
+    ws_test.sheet_properties.pageSetUpPr = openpyxl.worksheet.properties.PageSetupProperties(
+        fitToPage=True)
+    ws_test.page_setup.fitToWidth = 1
+    ws_test.page_setup.fitToHeight = 1
+    ws_test.page_setup.orientation = "portrait"
+    ws_test.page_setup.paperSize = ws_test.PAPERSIZE_A4
+    ws_test.page_margins.left = 0.5
+    ws_test.page_margins.right = 0.5
+    ws_test.page_margins.top = 0.4
+    ws_test.page_margins.bottom = 0.4
+
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
