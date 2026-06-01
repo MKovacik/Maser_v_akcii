@@ -414,6 +414,162 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
         ws_t.page_margins.top = 0.4
         ws_t.page_margins.bottom = 0.4
 
+    # ═══ SPORT SCORING SHEETS ═══
+    SCHOOLS = [
+        "SZŠ B. Bystrica",
+        "SZŠ Košice",
+        "SZŠ Lipt. Mikuláš",
+        "SZŠ Michalovce",
+        "SZŠ Nové Zámky",
+        "SZŠ P. Bystrica",
+        "SZŠ Prešov",
+        "SZŠ Rožňava",
+        "SZŠ Skalica",
+        "SZŠ Š. Kluberta Levoča",
+        "SZŠ Žilina",
+    ]
+
+    SPORT_SHEETS = [
+        {
+            "title": "Frisbee na cieľ",
+            "members": 2,
+            "max_per_member": 5,
+            "columns": ["Pokus 1", "Pokus 2", "Pokus 3", "Pokus 4", "Pokus 5", "Spolu"],
+            "legend": [
+                "Každý člen tímu má 5 pokusov.",
+                "Zásah cieľa = 1 bod, mimo = 0 bodov.",
+                "Max. 5 bodov na člena, max. 10 bodov za tím.",
+            ],
+        },
+        {
+            "title": "Beh na 50m",
+            "members": 2,
+            "max_per_member": 5,
+            "columns": ["Čas (s)", "Body"],
+            "legend": [
+                "CHLAPCI: 9,0s a viac = 1b | 8,6–8,9s = 2b | 8,1–8,5s = 3b | 7,7–8,0s = 4b | 7,6s a menej = 5b",
+                "DIEVČATÁ: 10,0s a viac = 1b | 9,5–9,9s = 2b | 8,9–9,4s = 3b | 8,4–8,8s = 4b | 8,3s a menej = 5b",
+            ],
+        },
+        {
+            "title": "Hod medicinbalom",
+            "members": 2,
+            "max_per_member": 5,
+            "columns": ["Vzdialenosť (m)", "Body"],
+            "legend": [
+                "CHLAPCI: 6,0m a menej = 1b | 6,01–7,5m = 2b | 7,51–9,0m = 3b | 9,01–10,5m = 4b | 10,51m a viac = 5b",
+                "DIEVČATÁ: 4,5m a menej = 1b | 4,51–5,8m = 2b | 5,81–7,0m = 3b | 7,01–8,3m = 4b | 8,31m a viac = 5b",
+            ],
+        },
+        {
+            "title": "Ľah-sed",
+            "members": 2,
+            "max_per_member": 5,
+            "columns": ["Počet (za 1 min)", "Body"],
+            "legend": [
+                "CHLAPCI: 25 a menej = 1b | 26–33 = 2b | 34–41 = 3b | 42–49 = 4b | 50 a viac = 5b",
+                "DIEVČATÁ: 20 a menej = 1b | 21–27 = 2b | 28–35 = 3b | 36–43 = 4b | 44 a viac = 5b",
+            ],
+        },
+    ]
+
+    FILL_SCHOOL = PatternFill("solid", fgColor="D6E4F0")
+
+    for sport in SPORT_SHEETS:
+        ws_s = wb.create_sheet(title=sport["title"])
+
+        # Title
+        ws_s.merge_cells("A1:F1")
+        c = ws_s.cell(row=1, column=1)
+        c.value = f"MASÉR V AKCII – {sport['title']}"
+        c.font = Font(name="Calibri", size=16, bold=True, color="1F4E79")
+        c.alignment = ALIGN_CENTER
+        ws_s.row_dimensions[1].height = 30
+
+        # Table header
+        row = 3
+        headers = ["Škola", "Člen"] + sport["columns"]
+        for ci, hdr in enumerate(headers, 1):
+            cell = ws_s.cell(row=row, column=ci, value=hdr)
+            cell.font = FONT_HEADER
+            cell.fill = FILL_HEADER
+            cell.alignment = ALIGN_CENTER
+            cell.border = THIN_BORDER
+        ws_s.row_dimensions[row].height = ROW_HEIGHT_HEADER
+        row += 1
+
+        # Data rows: each school has 2 members + subtotal row
+        for school in SCHOOLS:
+            # Member 1
+            ws_s.merge_cells(start_row=row, start_column=1, end_row=row + 1, end_column=1)
+            cell = ws_s.cell(row=row, column=1, value=school)
+            cell.font = FONT_BOLD
+            cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+            cell.border = THIN_BORDER
+            cell.fill = FILL_SCHOOL
+            ws_s.cell(row=row + 1, column=1).border = THIN_BORDER
+            ws_s.cell(row=row + 1, column=1).fill = FILL_SCHOOL
+
+            for member in range(sport["members"]):
+                r = row + member
+                ws_s.cell(row=r, column=2, value=f"Člen {member + 1}").font = FONT_NORMAL
+                ws_s.cell(row=r, column=2).alignment = ALIGN_CENTER
+                ws_s.cell(row=r, column=2).border = THIN_BORDER
+                # Empty cells for scoring
+                for ci in range(3, len(headers) + 1):
+                    cell = ws_s.cell(row=r, column=ci)
+                    cell.border = THIN_BORDER
+                    cell.alignment = ALIGN_CENTER
+                    cell.font = FONT_NORMAL
+                ws_s.row_dimensions[r].height = 28
+
+            # Team total row
+            r = row + sport["members"]
+            ws_s.cell(row=r, column=1).border = THIN_BORDER
+            ws_s.merge_cells(start_row=r, start_column=1, end_row=r, end_column=len(headers) - 1)
+            cell = ws_s.cell(row=r, column=1, value=f"Spolu za tím")
+            cell.font = FONT_BOLD
+            cell.alignment = Alignment(horizontal="right", vertical="center")
+            cell.border = THIN_BORDER
+            for ci in range(2, len(headers) + 1):
+                ws_s.cell(row=r, column=ci).border = THIN_BORDER
+            total_cell = ws_s.cell(row=r, column=len(headers))
+            total_cell.border = THIN_BORDER
+            total_cell.alignment = ALIGN_CENTER
+            total_cell.font = FONT_BOLD
+            ws_s.row_dimensions[r].height = 24
+
+            row += sport["members"] + 1
+
+        # Legend / scoring rules
+        row += 2
+        ws_s.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(headers))
+        ws_s.cell(row=row, column=1, value="Bodovanie:").font = FONT_BOLD
+        row += 1
+        for line in sport["legend"]:
+            ws_s.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(headers))
+            ws_s.cell(row=row, column=1, value=line).font = FONT_NORMAL
+            ws_s.cell(row=row, column=1).alignment = ALIGN_LEFT
+            row += 1
+
+        # Column widths
+        ws_s.column_dimensions["A"].width = 24
+        ws_s.column_dimensions["B"].width = 10
+        for ci in range(3, len(headers) + 1):
+            ws_s.column_dimensions[get_column_letter(ci)].width = 14
+
+        # Print setup
+        ws_s.sheet_properties.pageSetUpPr = openpyxl.worksheet.properties.PageSetupProperties(
+            fitToPage=True)
+        ws_s.page_setup.fitToWidth = 1
+        ws_s.page_setup.fitToHeight = 1
+        ws_s.page_setup.orientation = "portrait"
+        ws_s.page_setup.paperSize = ws_s.PAPERSIZE_A4
+        ws_s.page_margins.left = 0.5
+        ws_s.page_margins.right = 0.5
+        ws_s.page_margins.top = 0.4
+        ws_s.page_margins.bottom = 0.4
+
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
