@@ -649,6 +649,65 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
     ws_test.page_margins.top = 0.4
     ws_test.page_margins.bottom = 0.4
 
+    # ═══ RESULTS SUMMARY SHEET ═══
+    ws_res = wb.create_sheet(title="Výsledková listina")
+
+    ws_res.merge_cells("A1:I1")
+    c = ws_res.cell(row=1, column=1)
+    c.value = "MASÉR V AKCII – Výsledková listina"
+    c.font = Font(name="Calibri", size=14, bold=True, color="1F4E79")
+    c.alignment = ALIGN_CENTER
+    ws_res.row_dimensions[1].height = 26
+
+    row = 3
+    res_headers = [
+        "Škola",
+        "Klasická masáž", "Freestyle masáž",
+        "Test",
+        "Frisbee", "Beh 50m", "Hod med.", "Ľah-sed",
+        "Spolu", "Poradie",
+    ]
+    for ci, hdr in enumerate(res_headers, 1):
+        cell = ws_res.cell(row=row, column=ci, value=hdr)
+        cell.font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+        cell.fill = FILL_HEADER
+        cell.alignment = ALIGN_CENTER
+        cell.border = THIN_BORDER
+    ws_res.row_dimensions[row].height = 20
+    row += 1
+
+    for school in SCHOOLS:
+        cell = ws_res.cell(row=row, column=1, value=school)
+        cell.font = FONT_NORMAL
+        cell.alignment = ALIGN_LEFT
+        cell.border = THIN_BORDER
+        cell.fill = FILL_SCHOOL
+        for ci in range(2, len(res_headers) + 1):
+            ws_res.cell(row=row, column=ci).border = THIN_BORDER
+            ws_res.cell(row=row, column=ci).alignment = ALIGN_CENTER
+        # Spolu formula
+        spolu_cell = ws_res.cell(row=row, column=9)
+        spolu_cell.font = FONT_BOLD
+        ws_res.row_dimensions[row].height = 24
+        row += 1
+
+    ws_res.column_dimensions["A"].width = 22
+    for ci in range(2, 9):
+        ws_res.column_dimensions[get_column_letter(ci)].width = 12
+    ws_res.column_dimensions["I"].width = 10
+    ws_res.column_dimensions["J"].width = 10
+
+    ws_res.sheet_properties.pageSetUpPr = openpyxl.worksheet.properties.PageSetupProperties(
+        fitToPage=True)
+    ws_res.page_setup.fitToWidth = 1
+    ws_res.page_setup.fitToHeight = 1
+    ws_res.page_setup.orientation = "landscape"
+    ws_res.page_setup.paperSize = ws_res.PAPERSIZE_A4
+    ws_res.page_margins.left = 0.4
+    ws_res.page_margins.right = 0.4
+    ws_res.page_margins.top = 0.3
+    ws_res.page_margins.bottom = 0.3
+
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
