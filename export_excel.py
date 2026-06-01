@@ -336,17 +336,16 @@ def generate_excel(teams, logo_path=None, competition_start="08:45",
         info_row = title_row + 2
         ws_t.row_dimensions[title_row + 1].height = 6
 
-        ws_t.merge_cells(f"A{info_row}:B{info_row}")
         ws_t.cell(row=info_row, column=1,
                   value=f"Družstvo č. {t_id}").font = Font(name="Calibri", size=14, bold=True)
         ws_t.cell(row=info_row, column=1).alignment = ALIGN_LEFT
         ws_t.cell(row=info_row, column=1).border = THIN_BORDER
-        ws_t.cell(row=info_row, column=2).border = THIN_BORDER
 
-        ws_t.merge_cells(f"C{info_row}:D{info_row}")
-        ws_t.cell(row=info_row, column=3,
+        ws_t.merge_cells(f"B{info_row}:D{info_row}")
+        ws_t.cell(row=info_row, column=2,
                   value="Škola:").font = Font(name="Calibri", size=14, bold=True)
-        ws_t.cell(row=info_row, column=3).alignment = ALIGN_LEFT
+        ws_t.cell(row=info_row, column=2).alignment = ALIGN_LEFT
+        ws_t.cell(row=info_row, column=2).border = THIN_BORDER
         ws_t.cell(row=info_row, column=3).border = THIN_BORDER
         ws_t.cell(row=info_row, column=4).border = THIN_BORDER
         ws_t.row_dimensions[info_row].height = 25
